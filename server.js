@@ -279,10 +279,8 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
         
         // Обновляем программы
         if (isCoat === 'on') {
-            // Удаляем старые программы
             await Program.destroy({ where: { taskId: id } });
             
-            // Создаём новые
             for (let i = 1; i <= 6; i++) {
                 const name = req.body[`coat_name_${i}`];
                 const program = req.body[`coat_program_${i}`];
@@ -300,7 +298,6 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
                 }
             }
         } else {
-            // Обычный режим
             await Program.destroy({ where: { taskId: id } });
             await Program.create({
                 taskId: id,
@@ -403,7 +400,6 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
             return res.status(404).send('Задание не найдено');
         }
         
-        // Находим последнюю операцию через программы
         const programs = await Program.findAll({ where: { taskId } });
         let lastOperation = null;
         let lastProgramId = null;
@@ -439,7 +435,6 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
         const quantity = lastOperation.quantity;
         await lastOperation.destroy();
         
-        // Обновляем doneQuantity у программы
         const program = await Program.findByPk(lastProgramId);
         if (program) {
             await program.update({
@@ -447,7 +442,6 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
             });
         }
         
-        // Проверяем статус задания
         const allPrograms = await Program.findAll({ where: { taskId } });
         const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
         
@@ -526,12 +520,26 @@ app.post('/api/operations/delete/:id', async (req, res) => {
 app.post('/api/operations', async (req, res) => {
     const { taskId, programId, machineId, quantity } = req.body;
     
+    // Логируем входящие данные для отладки
+    console.log('📝 Ввод выработки:', { taskId, programId, machineId, quantity });
+    
     try {
-        const program = await Program.findByPk(programId);
-        if (!program) {
-            return res.status(404).json({ error: 'Деталь не найдена' });
+        // Проверяем, передан ли programId
+        if (!programId) {
+            console.error('❌ programId не передан!');
+            return res.status(400).json({ error: '❌ Не передан ID детали' });
         }
         
+        // Проверяем, существует ли программа
+        const program = await Program.findByPk(programId);
+        if (!program) {
+            console.error('❌ Программа не найдена, ID:', programId);
+            return res.status(404).json({ error: '❌ Деталь не найдена' });
+        }
+        
+        console.log('✅ Найдена программа:', program.name, 'ID:', program.id);
+        
+        // Сохраняем операцию
         const operation = await Operation.create({
             programId: parseInt(programId),
             employeeId: 1,
@@ -539,13 +547,18 @@ app.post('/api/operations', async (req, res) => {
             quantity: parseInt(quantity)
         });
         
+        // Обновляем количество в программе
         const newDone = program.doneQuantity + parseInt(quantity);
         await program.update({ doneQuantity: newDone });
+        console.log(`✅ Обновлено: ${program.name} - ${newDone}/${program.planQuantity}`);
         
+        // Проверяем, выполнена ли деталь
         if (newDone >= program.planQuantity) {
             await program.update({ status: 'completed' });
+            console.log(`✅ Деталь ${program.name} выполнена!`);
         }
         
+        // Проверяем, выполнено ли всё задание
         const task = await Task.findByPk(taskId);
         const allPrograms = await Program.findAll({ where: { taskId } });
         const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
@@ -554,6 +567,7 @@ app.post('/api/operations', async (req, res) => {
             await task.update({ status: 'completed' });
             const io = req.app.get('io');
             io.emit('taskCompleted', task);
+            console.log(`✅ Задание ${task.modelName} полностью выполнено!`);
         }
         
         res.json({
@@ -569,8 +583,8 @@ app.post('/api/operations', async (req, res) => {
         });
         
     } catch (err) {
-        console.error('Ошибка при сохранении:', err);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        console.error('❌ Ошибка при сохранении:', err);
+        res.status(500).json({ error: '❌ Ошибка сервера: ' + err.message });
     }
 });
 
