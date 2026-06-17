@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Админ панель</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Dika <span>Knit</span></div>
+        <div class="header-right">
+            <a href="/admin/workers" style="color:#c9a959; text-decoration:none; margin-right:15px; font-weight:600;">👥 Сотрудники</a>
+            <a href="/admin/shifts" style="color:#c9a959; text-decoration:none; margin-right:15px; font-weight:600;">📊 Смены</a>
+            <span style="color:#aaa;"><%= user.fullName %></span>
+            <a href="/logout" class="logout-btn">Выйти</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">👑 Админ панель</h1>
+
+        <!-- Статистика -->
+        <div class="stats">
+            <div class="stat-card">
+                <span class="stat-icon">📋</span>
+                <div class="stat-number"><%= typeof totalTasks !== 'undefined' ? totalTasks : 0 %></div>
+                <div class="stat-label">Всего заданий</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">✅</span>
+                <div class="stat-number"><%= typeof completedTasks !== 'undefined' ? completedTasks : 0 %></div>
+                <div class="stat-label">Выполнено</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🧶</span>
+                <div class="stat-number"><%= typeof totalMade !== 'undefined' ? totalMade : 0 %></div>
+                <div class="stat-label">Связано шт.</div>
+            </div>
+        </div>
+
+        <!-- Создание задания -->
+        <div class="create-task">
+            <h2>➕ Создать задание</h2>
+            <form action="/api/tasks" method="post" class="form-grid">
+                <input type="text" name="modelName" placeholder="Модель (Алена)" required>
+                <input type="text" name="programFile" placeholder="Программа (turin.999)" required>
+                <input type="text" name="color" placeholder="Цвет" required>
+                <select name="className" required>
+                    <option value="">Класс</option>
+                    <option value="Stoll">Stoll</option>
+                    <option value="5">5</option>
+                    <option value="7">7</option>
+                    <option value="12">12</option>
+                    <option value="14">14</option>
+                </select>
+                <input type="number" name="planQuantity" placeholder="Количество (шт.)" required>
+                <div class="checkbox-group">
+                    <input type="checkbox" name="isUrgent" id="urgent">
+                    <label for="urgent">🔥 Срочно</label>
+                </div>
+                <button type="submit" class="btn-submit">Создать</button>
+            </form>
+        </div>
+
+        <!-- Список заданий -->
+        <div class="tasks-table">
+            <% if (typeof tasks !== 'undefined' && tasks && tasks.length > 0) { %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Модель</th>
+                        <th>Программа</th>
+                        <th>Цвет</th>
+                        <th>Класс</th>
+                        <th>Количество</th>
+                        <th>Сделано</th>
+                        <th>Прогресс</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% tasks.forEach(function(task) { 
+                        let done = 0;
+                        if (task.operations) {
+                            task.operations.forEach(function(o) { done += o.quantity; });
+                        }
+                        let percent = Math.min((done / task.planQuantity) * 100, 100);
+                    %>
+                    <tr>
+                        <td><%= task.isUrgent ? '🔥 ' : '' %><%= task.modelName %></td>
+                        <td><%= task.programFile %></td>
+                        <td><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:<%= task.color %>;"></span> <%= task.color %></td>
+                        <td><%= task.className %></td>
+                        <td><%= task.planQuantity %></td>
+                        <td><%= done %></td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width:<%= percent %>%;"></div>
+                                </div>
+                                <span style="font-size:12px; color:#aaa;"><%= Math.round(percent) %>%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge <%= task.status === 'completed' ? 'status-completed' : 'status-pending' %>">
+                                <% if (task.status === 'completed') { %>
+                                    ✅ Готов
+                                <% } else { %>
+                                    ⏳ В работе
+                                <% } %>
+                            </span>
+                        </td>
+                        <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <% if (task.status === 'completed') { %>
+                                <form action="/api/tasks/restore/<%= task.id %>" method="post" style="display:inline;">
+                                    <button type="submit" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:11px;">↩️ Вернуть</button>
+                                </form>
+                            <% } %>
+                            <form action="/api/tasks/duplicate/<%= task.id %>" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:11px;">🔄 Дублировать</button>
+                            </form>
+                            <form action="/api/tasks/delete/<%= task.id %>" method="post" style="display:inline;" onsubmit="return confirm('Удалить задание?')">
+                                <button type="submit" class="btn btn-danger btn-sm" style="padding:4px 10px; font-size:11px;">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+            <% } else { %>
+                <div class="empty-state">
+                    <span class="empty-icon">📭</span>
+                    <p style="font-size:18px; color:#888;">Нет активных заданий</p>
+                    <p style="color:#555; margin-top:10px;">Создайте первое задание выше</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+</body>
+</html>

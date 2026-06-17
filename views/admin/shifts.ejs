@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Смены</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Dika <span>Knit</span></div>
+        <div class="header-right">
+            <a href="/admin" style="color:#c9a959; text-decoration:none; margin-right:15px;">← Назад</a>
+            <span style="color:#aaa;"><%= user.fullName %></span>
+            <a href="/logout" class="logout-btn">Выйти</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">📊 Смены</h1>
+
+        <!-- Фильтры -->
+        <div class="create-task" style="margin-bottom:30px;">
+            <form action="/admin/shifts" method="get" class="form-grid">
+                <input type="date" name="date" value="<%= date %>" required>
+                <select name="shift" required>
+                    <option value="day" <%= shift === 'day' ? 'selected' : '' %>>Дневная (8:00-20:00)</option>
+                    <option value="night" <%= shift === 'night' ? 'selected' : '' %>>Ночная (20:00-8:00)</option>
+                </select>
+                <button type="submit" class="btn-submit">Показать</button>
+            </form>
+        </div>
+
+        <!-- Сводка по сотрудникам -->
+        <div class="stats" style="margin-bottom:30px;">
+            <div class="stat-card">
+                <span class="stat-icon">👥</span>
+                <div class="stat-number"><%= summary.length %></div>
+                <div class="stat-label">Сотрудников работало</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">🧶</span>
+                <div class="stat-number"><%= summary.reduce((sum, s) => sum + s.total, 0) %></div>
+                <div class="stat-label">Всего связано шт.</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📋</span>
+                <div class="stat-number"><%= operations ? operations.length : 0 %></div>
+                <div class="stat-label">Всего операций</div>
+            </div>
+        </div>
+
+        <!-- Таблица по сотрудникам -->
+        <div class="tasks-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Связано (шт.)</th>
+                        <th>Станки</th>
+                        <th>Модели</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (summary && summary.length > 0) { %>
+                        <% summary.forEach(function(item) { %>
+                            <tr>
+                                <td><strong><%= item.name %></strong></td>
+                                <td><%= item.total %></td>
+                                <td><%= item.machines || '—' %></td>
+                                <td><%= item.tasks || '—' %></td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="4" style="text-align:center; color:#666; padding:40px;">
+                                <p style="font-size:20px;">📭</p>
+                                <p>За эту смену нет данных</p>
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Детальный список операций -->
+        <div style="margin-top:30px;">
+            <h2 style="color:#c9a959; margin-bottom:20px;">📋 Детальный список операций</h2>
+            <div class="tasks-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Время</th>
+                            <th>Сотрудник</th>
+                            <th>Задание</th>
+                            <th>Станок</th>
+                            <th>Количество</th>
+                            <th>Печать</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (operations && operations.length > 0) { %>
+                            <% operations.forEach(function(op) { %>
+                                <tr>
+                                    <td><%= new Date(op.createdAt).toLocaleString('ru-RU') %></td>
+                                    <td><%= op.employee ? op.employee.fullName : '—' %></td>
+                                    <td><%= op.task ? op.task.modelName : '—' %></td>
+                                    <td><%= op.machine ? '№' + op.machine.machineNumber : '—' %></td>
+                                    <td><strong><%= op.quantity %></strong></td>
+                                    <td><%= op.printedAt ? '✅ ' + new Date(op.printedAt).toLocaleString('ru-RU') : '—' %></td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="6" style="text-align:center; color:#666; padding:40px;">Нет операций</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
