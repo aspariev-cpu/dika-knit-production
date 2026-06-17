@@ -8,7 +8,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const { sequelize, User, Machine, Task, Operation } = require('./models');
+const { sequelize, User, Machine, Task, Program, Operation } = require('./models');
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,13 +80,22 @@ app.get('/logout', (req, res) => {
 // ---- АДМИН-ПАНЕЛЬ ----
 app.get('/admin', async (req, res) => {
     try {
-        const tasks = await Task.findAll({ include: ['operations'] });
+        const tasks = await Task.findAll({
+            include: [
+                { model: Program, as: 'programs' }
+            ]
+        });
         
         let totalTasks = tasks.length;
         let completedTasks = tasks.filter(t => t.status === 'completed').length;
         let totalMade = 0;
+        
         tasks.forEach(t => {
-            if (t.operations) t.operations.forEach(o => totalMade += o.quantity);
+            if (t.programs) {
+                t.programs.forEach(p => {
+                    totalMade += p.doneQuantity;
+                });
+            }
         });
 
         res.render('admin/dashboard', {
@@ -162,7 +171,9 @@ app.get('/worker', async (req, res) => {
     try {
         const tasks = await Task.findAll({
             where: { status: ['pending', 'in_progress'] },
-            include: ['operations']
+            include: [
+                { model: Program, as: 'programs' }
+            ]
         });
 
         res.render('worker/dashboard', {
@@ -177,28 +188,62 @@ app.get('/worker', async (req, res) => {
 
 // ---- СОЗДАНИЕ ЗАДАНИЯ ----
 app.post('/api/tasks', async (req, res) => {
-    const { modelName, programFile, color, className, planQuantity, isUrgent } = req.body;
+    const { modelName, color, className, isUrgent, isCoat, programFile, planQuantity } = req.body;
     
-    const task = await Task.create({
-        modelName,
-        programFile,
-        color,
-        className,
-        planQuantity: parseInt(planQuantity),
-        isUrgent: isUrgent === 'on',
-        status: 'pending'
-    });
-    
-    const io = req.app.get('io');
-    io.emit('newTask', task);
-    
-    res.redirect('/admin');
+    try {
+        const task = await Task.create({
+            modelName,
+            color,
+            className,
+            isUrgent: isUrgent === 'on',
+            isCoat: isCoat === 'on',
+            status: 'pending'
+        });
+        
+        if (isCoat === 'on') {
+            for (let i = 1; i <= 6; i++) {
+                const name = req.body[`coat_name_${i}`];
+                const program = req.body[`coat_program_${i}`];
+                const quantity = req.body[`coat_quantity_${i}`];
+                
+                if (name && program && quantity) {
+                    await Program.create({
+                        taskId: task.id,
+                        name: name,
+                        programFile: program,
+                        planQuantity: parseInt(quantity),
+                        doneQuantity: 0,
+                        status: 'pending'
+                    });
+                }
+            }
+        } else {
+            await Program.create({
+                taskId: task.id,
+                name: 'Основная',
+                programFile: programFile,
+                planQuantity: parseInt(planQuantity),
+                doneQuantity: 0,
+                status: 'pending'
+            });
+        }
+        
+        const io = req.app.get('io');
+        io.emit('newTask', task);
+        
+        res.redirect('/admin');
+    } catch (err) {
+        console.error('Ошибка при создании задания:', err);
+        res.status(500).send('Ошибка при создании задания');
+    }
 });
 
 // ---- СТРАНИЦА РЕДАКТИРОВАНИЯ ----
 app.get('/admin/tasks/edit/:id', async (req, res) => {
     try {
-        const task = await Task.findByPk(req.params.id);
+        const task = await Task.findByPk(req.params.id, {
+            include: [{ model: Program, as: 'programs' }]
+        });
         if (!task) {
             return res.status(404).send('Задание не найдено');
         }
@@ -216,7 +261,7 @@ app.get('/admin/tasks/edit/:id', async (req, res) => {
 // ---- РЕДАКТИРОВАНИЕ ЗАДАНИЯ ----
 app.post('/api/tasks/edit/:id', async (req, res) => {
     const { id } = req.params;
-    const { modelName, programFile, color, className, planQuantity, isUrgent } = req.body;
+    const { modelName, color, className, isUrgent, isCoat } = req.body;
     
     try {
         const task = await Task.findByPk(id);
@@ -226,12 +271,46 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
         
         await task.update({
             modelName,
-            programFile,
             color,
             className,
-            planQuantity: parseInt(planQuantity),
-            isUrgent: isUrgent === 'on'
+            isUrgent: isUrgent === 'on',
+            isCoat: isCoat === 'on'
         });
+        
+        // Обновляем программы
+        if (isCoat === 'on') {
+            // Удаляем старые программы
+            await Program.destroy({ where: { taskId: id } });
+            
+            // Создаём новые
+            for (let i = 1; i <= 6; i++) {
+                const name = req.body[`coat_name_${i}`];
+                const program = req.body[`coat_program_${i}`];
+                const quantity = req.body[`coat_quantity_${i}`];
+                
+                if (name && program && quantity) {
+                    await Program.create({
+                        taskId: id,
+                        name: name,
+                        programFile: program,
+                        planQuantity: parseInt(quantity),
+                        doneQuantity: 0,
+                        status: 'pending'
+                    });
+                }
+            }
+        } else {
+            // Обычный режим
+            await Program.destroy({ where: { taskId: id } });
+            await Program.create({
+                taskId: id,
+                name: 'Основная',
+                programFile: req.body.programFile,
+                planQuantity: parseInt(req.body.planQuantity),
+                doneQuantity: 0,
+                status: 'pending'
+            });
+        }
         
         res.redirect('/admin');
     } catch (err) {
@@ -267,20 +346,32 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
     const { id } = req.params;
     
     try {
-        const original = await Task.findByPk(id);
+        const original = await Task.findByPk(id, {
+            include: [{ model: Program, as: 'programs' }]
+        });
         if (!original) {
             return res.status(404).send('Задание не найдено');
         }
         
-        await Task.create({
+        const newTask = await Task.create({
             modelName: original.modelName + ' (копия)',
-            programFile: original.programFile,
             color: original.color,
             className: original.className,
-            planQuantity: original.planQuantity,
             isUrgent: original.isUrgent,
+            isCoat: original.isCoat,
             status: 'pending'
         });
+        
+        for (const program of original.programs) {
+            await Program.create({
+                taskId: newTask.id,
+                name: program.name,
+                programFile: program.programFile,
+                planQuantity: program.planQuantity,
+                doneQuantity: 0,
+                status: 'pending'
+            });
+        }
         
         res.redirect('/admin');
     } catch (err) {
@@ -312,41 +403,60 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
             return res.status(404).send('Задание не найдено');
         }
         
-        const operations = await Operation.findAll({ where: { taskId } });
-        let totalDone = 0;
-        operations.forEach(op => totalDone += op.quantity);
+        // Находим последнюю операцию через программы
+        const programs = await Program.findAll({ where: { taskId } });
+        let lastOperation = null;
+        let lastProgramId = null;
         
-        if (totalDone < task.planQuantity) {
-            return res.status(400).send('❌ Задание ещё не выполнено на 100%. Отмена доступна только после полного выполнения.');
+        for (const program of programs) {
+            const ops = await Operation.findAll({
+                where: { programId: program.id },
+                order: [['createdAt', 'DESC']],
+                limit: 1
+            });
+            if (ops.length > 0) {
+                if (!lastOperation || ops[0].createdAt > lastOperation.createdAt) {
+                    lastOperation = ops[0];
+                    lastProgramId = program.id;
+                }
+            }
         }
-        
-        if (!task.lastPrintedAt) {
-            return res.status(400).send('❌ Нет информации о времени печати. Отмена невозможна.');
-        }
-        
-        const now = new Date();
-        const diffMs = now - new Date(task.lastPrintedAt);
-        const diffMinutes = diffMs / (1000 * 60);
-        
-        if (diffMinutes >= 60) {
-            return res.status(400).send('⏰ Прошло больше часа, отмена невозможна');
-        }
-        
-        const lastOperation = await Operation.findOne({
-            where: { taskId },
-            order: [['createdAt', 'DESC']]
-        });
         
         if (!lastOperation) {
-            return res.status(404).send('Нет операций для отмены');
+            return res.status(400).send('❌ Нет операций для отмены');
         }
         
+        if (task.status === 'completed' && task.lastPrintedAt) {
+            const now = new Date();
+            const diffMs = now - new Date(task.lastPrintedAt);
+            const diffMinutes = diffMs / (1000 * 60);
+            
+            if (diffMinutes >= 60) {
+                return res.status(400).send('⏰ Прошло больше часа, отмена невозможна');
+            }
+        }
+        
+        const quantity = lastOperation.quantity;
         await lastOperation.destroy();
         
-        await task.update({ 
-            status: 'pending',
-            lastPrintedAt: null
-        });
+        // Обновляем doneQuantity у программы
+        const program = await Program.findByPk(lastProgramId);
+        if (program) {
+            await program.update({
+                doneQuantity: Math.max(0, program.doneQuantity - quantity)
+            });
+        }
+        
+        // Проверяем статус задания
+        const allPrograms = await Program.findAll({ where: { taskId } });
+        const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
+        
+        if (task.status === 'completed') {
+            await task.update({
+                status: allDone ? 'completed' : 'pending',
+                lastPrintedAt: allDone ? task.lastPrintedAt : null
+            });
+        }
         
         res.redirect('/worker');
         
@@ -356,44 +466,106 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
     }
 });
 
-// ---- ВВОД ВЫРАБОТКИ ----
-app.post('/api/operations', async (req, res) => {
-    const { taskId, machineId, quantity } = req.body;
+// ---- РЕДАКТИРОВАНИЕ ОПЕРАЦИИ ----
+app.post('/api/operations/edit/:id', async (req, res) => {
+    const { id } = req.params;
+    const { quantity } = req.body;
     
     try {
-        const task = await Task.findByPk(taskId);
-        if (!task) {
-            return res.status(404).json({ error: 'Задание не найдено' });
+        const operation = await Operation.findByPk(id);
+        if (!operation) {
+            return res.status(404).json({ error: 'Операция не найдена' });
         }
         
-        const operations = await Operation.findAll({ where: { taskId } });
-        let totalDone = 0;
-        operations.forEach(op => totalDone += op.quantity);
+        const oldQuantity = operation.quantity;
+        await operation.update({ quantity: parseInt(quantity) });
+        
+        const program = await Program.findByPk(operation.programId);
+        if (program) {
+            await program.update({
+                doneQuantity: Math.max(0, program.doneQuantity - oldQuantity + parseInt(quantity))
+            });
+        }
+        
+        res.redirect('/admin');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка при редактировании операции');
+    }
+});
+
+// ---- УДАЛЕНИЕ ОПЕРАЦИИ ----
+app.post('/api/operations/delete/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const operation = await Operation.findByPk(id);
+        if (!operation) {
+            return res.status(404).json({ error: 'Операция не найдена' });
+        }
+        
+        const quantity = operation.quantity;
+        const programId = operation.programId;
+        await operation.destroy();
+        
+        const program = await Program.findByPk(programId);
+        if (program) {
+            await program.update({
+                doneQuantity: Math.max(0, program.doneQuantity - quantity)
+            });
+        }
+        
+        res.redirect('/admin');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка при удалении операции');
+    }
+});
+
+// ---- ВВОД ВЫРАБОТКИ ----
+app.post('/api/operations', async (req, res) => {
+    const { taskId, programId, machineId, quantity } = req.body;
+    
+    try {
+        const program = await Program.findByPk(programId);
+        if (!program) {
+            return res.status(404).json({ error: 'Деталь не найдена' });
+        }
         
         const operation = await Operation.create({
-            taskId,
+            programId: parseInt(programId),
             employeeId: 1,
             machineId: parseInt(machineId),
             quantity: parseInt(quantity)
         });
         
-        const newTotal = totalDone + parseInt(quantity);
-        const taskCompleted = newTotal >= task.planQuantity;
+        const newDone = program.doneQuantity + parseInt(quantity);
+        await program.update({ doneQuantity: newDone });
+        
+        if (newDone >= program.planQuantity) {
+            await program.update({ status: 'completed' });
+        }
+        
+        const task = await Task.findByPk(taskId);
+        const allPrograms = await Program.findAll({ where: { taskId } });
+        const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
+        
+        if (allDone && task.status !== 'completed') {
+            await task.update({ status: 'completed' });
+            const io = req.app.get('io');
+            io.emit('taskCompleted', task);
+        }
         
         res.json({
             success: true,
             operationId: operation.id,
-            taskId: task.id,
-            modelName: task.modelName,
-            programFile: task.programFile,
-            color: task.color,
-            className: task.className,
+            programId: program.id,
+            programName: program.name,
             quantity: quantity,
-            machineId: machineId,
-            worker: 'Вязальщик',
-            planQuantity: task.planQuantity,
-            totalDone: newTotal,
-            taskCompleted: taskCompleted
+            programDone: newDone,
+            programPlan: program.planQuantity,
+            allDone: allDone,
+            taskCompleted: allDone
         });
         
     } catch (err) {
@@ -414,9 +586,12 @@ app.post('/api/print', async (req, res) => {
         
         const operation = await Operation.findByPk(operationId);
         if (operation) {
-            const task = await Task.findByPk(operation.taskId);
-            if (task) {
-                await task.update({ lastPrintedAt: new Date() });
+            const program = await Program.findByPk(operation.programId);
+            if (program) {
+                const task = await Task.findByPk(program.taskId);
+                if (task) {
+                    await task.update({ lastPrintedAt: new Date() });
+                }
             }
         }
         
@@ -465,7 +640,7 @@ app.get('/admin/shifts', async (req, res) => {
             where: whereClause,
             include: [
                 { model: User, as: 'employee' },
-                { model: Task, as: 'Task' },
+                { model: Program, as: 'program' },
                 { model: Machine, as: 'machine' }
             ],
             order: [['createdAt', 'DESC']]
@@ -478,19 +653,19 @@ app.get('/admin/shifts', async (req, res) => {
                 summary[name] = {
                     total: 0,
                     machines: new Set(),
-                    tasks: new Set()
+                    programs: new Set()
                 };
             }
             summary[name].total += op.quantity;
             if (op.machine) summary[name].machines.add(op.machine.machineNumber);
-            if (op.Task) summary[name].tasks.add(op.Task.modelName);
+            if (op.program) summary[name].programs.add(op.program.name);
         });
         
         const formattedSummary = Object.keys(summary).map(name => ({
             name,
             total: summary[name].total,
             machines: Array.from(summary[name].machines).join(', '),
-            tasks: Array.from(summary[name].tasks).join(', ')
+            programs: Array.from(summary[name].programs).join(', ')
         }));
         
         res.render('admin/shifts', {
@@ -506,14 +681,15 @@ app.get('/admin/shifts', async (req, res) => {
     }
 });
 
-// ---- АВТОМАТИЧЕСКОЕ ЗАВЕРШЕНИЕ ЗАДАНИЙ ----
+// ---- АВТОМАТИЧЕСКОЕ ЗАВЕРШЕНИЕ ----
 async function checkCompletedTasks() {
     try {
         const tasks = await Task.findAll({
-            where: { 
+            where: {
                 status: 'in_progress',
                 lastPrintedAt: { [Op.ne]: null }
-            }
+            },
+            include: [{ model: Program, as: 'programs' }]
         });
         
         const now = new Date();
@@ -522,11 +698,14 @@ async function checkCompletedTasks() {
             const diffMinutes = diffMs / (1000 * 60);
             
             if (diffMinutes >= 60) {
-                task.status = 'completed';
-                await task.save();
-                const io = app.get('io');
-                io.emit('taskCompleted', task);
-                console.log(`✅ Задание ${task.modelName} завершено автоматически через час`);
+                const allDone = task.programs.every(p => p.doneQuantity >= p.planQuantity);
+                if (allDone) {
+                    task.status = 'completed';
+                    await task.save();
+                    const io = app.get('io');
+                    io.emit('taskCompleted', task);
+                    console.log(`✅ Задание ${task.modelName} завершено автоматически через час`);
+                }
             }
         }
     } catch (err) {
