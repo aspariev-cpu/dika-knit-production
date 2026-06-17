@@ -64,10 +64,10 @@
                                     <div class="task-progress-fill" style="width:<%= progPercent %>%;"></div>
                                 </div>
                                 <div style="display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
-                                    <button class="btn btn-primary btn-sm" onclick="openModal(<%= task.id %>, <%= program.id %>, '<%= program.name %>')" style="padding:4px 12px; font-size:12px;">
+                                    <button class="btn btn-primary btn-sm" onclick="openModal('<%= task.id %>', '<%= program.id %>', '<%= program.name %>')" style="padding:4px 12px; font-size:12px;">
                                         📝 Ввести кол-во
                                     </button>
-                                    <button class="btn btn-secondary btn-sm print-btn" data-task-id="<%= task.id %>" data-program-id="<%= program.id %>" onclick="printLabel(<%= task.id %>, <%= program.id %>)" style="padding:4px 12px; font-size:12px;">
+                                    <button class="btn btn-secondary btn-sm print-btn" data-task-id="<%= task.id %>" data-program-id="<%= program.id %>" onclick="printLabel('<%= task.id %>', '<%= program.id %>')" style="padding:4px 12px; font-size:12px;">
                                         🖨️ Печать
                                     </button>
                                 </div>
@@ -195,14 +195,34 @@
         }
         
         function openModal(taskId, programId, programName) {
+            console.log('🔍 openModal вызван:', { taskId, programId, programName });
+            
             const modal = document.getElementById('modal');
             if (!modal) {
-                console.error('Модальное окно не найдено');
+                console.error('❌ Модальное окно не найдено');
+                alert('Ошибка: модальное окно не найдено');
                 return;
             }
-            document.getElementById('taskId').value = taskId;
-            document.getElementById('programId').value = programId;
-            document.getElementById('modalTitle').textContent = '📦 ' + programName;
+            
+            const taskIdInput = document.getElementById('taskId');
+            const programIdInput = document.getElementById('programId');
+            const title = document.getElementById('modalTitle');
+            
+            if (!taskIdInput || !programIdInput || !title) {
+                console.error('❌ Элементы формы не найдены');
+                alert('Ошибка: элементы формы не найдены');
+                return;
+            }
+            
+            taskIdInput.value = taskId;
+            programIdInput.value = programId;
+            title.textContent = '📦 ' + programName;
+            
+            console.log('✅ Установлены значения:', {
+                taskId: taskIdInput.value,
+                programId: programIdInput.value
+            });
+            
             modal.classList.add('active');
         }
         
