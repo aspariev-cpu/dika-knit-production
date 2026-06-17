@@ -21,7 +21,6 @@
     <div class="container">
         <h1 class="page-title">👑 Админ панель</h1>
 
-        <!-- Статистика -->
         <div class="stats">
             <div class="stat-card">
                 <span class="stat-icon">📋</span>
@@ -40,7 +39,6 @@
             </div>
         </div>
 
-        <!-- Создание задания -->
         <div class="create-task">
             <h2>➕ Создать задание</h2>
             <form action="/api/tasks" method="post" class="form-grid">
@@ -64,7 +62,6 @@
             </form>
         </div>
 
-        <!-- Список заданий -->
         <div class="tasks-table">
             <% if (typeof tasks !== 'undefined' && tasks && tasks.length > 0) { %>
             <table>
@@ -114,6 +111,7 @@
                             </span>
                         </td>
                         <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <a href="/admin/tasks/edit/<%= task.id %>" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:11px; text-decoration:none; background:rgba(255,255,255,0.08); border-radius:6px; color:#fff;">✏️</a>
                             <% if (task.status === 'completed') { %>
                                 <form action="/api/tasks/restore/<%= task.id %>" method="post" style="display:inline;">
                                     <button type="submit" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:11px;">↩️ Вернуть</button>
