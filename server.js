@@ -520,17 +520,14 @@ app.post('/api/operations/delete/:id', async (req, res) => {
 app.post('/api/operations', async (req, res) => {
     const { taskId, programId, machineId, quantity } = req.body;
     
-    // Логируем входящие данные для отладки
     console.log('📝 Ввод выработки:', { taskId, programId, machineId, quantity });
     
     try {
-        // Проверяем, передан ли programId
         if (!programId) {
             console.error('❌ programId не передан!');
             return res.status(400).json({ error: '❌ Не передан ID детали' });
         }
         
-        // Проверяем, существует ли программа
         const program = await Program.findByPk(programId);
         if (!program) {
             console.error('❌ Программа не найдена, ID:', programId);
@@ -539,7 +536,6 @@ app.post('/api/operations', async (req, res) => {
         
         console.log('✅ Найдена программа:', program.name, 'ID:', program.id);
         
-        // Сохраняем операцию
         const operation = await Operation.create({
             programId: parseInt(programId),
             employeeId: 1,
@@ -547,18 +543,15 @@ app.post('/api/operations', async (req, res) => {
             quantity: parseInt(quantity)
         });
         
-        // Обновляем количество в программе
         const newDone = program.doneQuantity + parseInt(quantity);
         await program.update({ doneQuantity: newDone });
         console.log(`✅ Обновлено: ${program.name} - ${newDone}/${program.planQuantity}`);
         
-        // Проверяем, выполнена ли деталь
         if (newDone >= program.planQuantity) {
             await program.update({ status: 'completed' });
             console.log(`✅ Деталь ${program.name} выполнена!`);
         }
         
-        // Проверяем, выполнено ли всё задание
         const task = await Task.findByPk(taskId);
         const allPrograms = await Program.findAll({ where: { taskId } });
         const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
