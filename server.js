@@ -195,6 +195,24 @@ app.post('/api/tasks', async (req, res) => {
     res.redirect('/admin');
 });
 
+// ---- СТРАНИЦА РЕДАКТИРОВАНИЯ ----
+app.get('/admin/tasks/edit/:id', async (req, res) => {
+    try {
+        const task = await Task.findByPk(req.params.id);
+        if (!task) {
+            return res.status(404).send('Задание не найдено');
+        }
+        
+        res.render('admin/edit-task', {
+            task,
+            user: { fullName: 'Администратор', isAdmin: true }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка при загрузке задания');
+    }
+});
+
 // ---- РЕДАКТИРОВАНИЕ ЗАДАНИЯ ----
 app.post('/api/tasks/edit/:id', async (req, res) => {
     const { id } = req.params;
@@ -289,6 +307,31 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
     const { taskId } = req.params;
     
     try {
+        const task = await Task.findByPk(taskId);
+        if (!task) {
+            return res.status(404).send('Задание не найдено');
+        }
+        
+        const operations = await Operation.findAll({ where: { taskId } });
+        let totalDone = 0;
+        operations.forEach(op => totalDone += op.quantity);
+        
+        if (totalDone < task.planQuantity) {
+            return res.status(400).send('❌ Задание ещё не выполнено на 100%. Отмена доступна только после полного выполнения.');
+        }
+        
+        if (!task.lastPrintedAt) {
+            return res.status(400).send('❌ Нет информации о времени печати. Отмена невозможна.');
+        }
+        
+        const now = new Date();
+        const diffMs = now - new Date(task.lastPrintedAt);
+        const diffMinutes = diffMs / (1000 * 60);
+        
+        if (diffMinutes >= 60) {
+            return res.status(400).send('⏰ Прошло больше часа, отмена невозможна');
+        }
+        
         const lastOperation = await Operation.findOne({
             where: { taskId },
             order: [['createdAt', 'DESC']]
@@ -298,30 +341,17 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
             return res.status(404).send('Нет операций для отмены');
         }
         
-        const task = await Task.findByPk(taskId);
-        if (task && task.lastPrintedAt) {
-            const now = new Date();
-            const diffMs = now - new Date(task.lastPrintedAt);
-            const diffMinutes = diffMs / (1000 * 60);
-            
-            if (diffMinutes >= 60) {
-                return res.status(400).send('⏰ Прошло больше часа, отмена невозможна');
-            }
-        }
-        
         await lastOperation.destroy();
         
-        if (task && task.status === 'completed') {
-            await task.update({ 
-                status: 'pending',
-                lastPrintedAt: null
-            });
-        }
+        await task.update({ 
+            status: 'pending',
+            lastPrintedAt: null
+        });
         
         res.redirect('/worker');
         
     } catch (err) {
-        console.error(err);
+        console.error('Ошибка при отмене:', err);
         res.status(500).send('Ошибка при отмене');
     }
 });
