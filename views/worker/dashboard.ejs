@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Вязальщик</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Dika <span>Knit</span></div>
+        <div class="header-right">
+            <span class="header-user">
+                <span class="avatar"><%= user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U' %></span>
+                <%= user.fullName || 'Вязальщик' %>
+            </span>
+            <a href="/logout" class="logout-btn">Выйти</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">🧵 Мои задания</h1>
+        
+        <div class="tasks-grid">
+            <% if (tasks && tasks.length > 0) { %>
+                <% tasks.forEach(function(task) {
+                    let totalDone = 0;
+                    let totalPlan = 0;
+                    let allDone = true;
+                    if (task.programs) {
+                        task.programs.forEach(function(p) {
+                            totalDone += p.doneQuantity;
+                            totalPlan += p.planQuantity;
+                            if (p.doneQuantity < p.planQuantity) allDone = false;
+                        });
+                    }
+                    let totalPercent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
+                    let isUrgent = task.isUrgent;
+                %>
+                <div class="task-card <%= isUrgent ? 'urgent' : '' %>" data-task-id="<%= task.id %>">
+                    <!-- Шапка задания -->
+                    <div class="task-title">
+                        <% if (isUrgent) { %>
+                            <span class="urgent-badge">🔥</span>
+                        <% } %>
+                        <%= task.modelName %>
+                    </div>
+                    <div class="task-meta">
+                        Цвет: <span class="color-dot" style="background:<%= task.color %>;"></span> <%= task.color %> | 
+                        Класс: <strong><%= task.className %></strong>
+                    </div>
+                    
+                    <!-- Детали (программы) -->
+                    <% if (task.programs && task.programs.length > 0) { %>
+                        <% task.programs.forEach(function(program) {
+                            let progPercent = Math.min((program.doneQuantity / program.planQuantity) * 100, 100);
+                            let progDone = program.doneQuantity >= program.planQuantity;
+                        %>
+                            <div class="program-item">
+                                <div class="program-header">
+                                    <div class="program-name">
+                                        <strong><%= program.name %></strong>
+                                        <span style="color:#888; font-weight:400; font-size:12px;">(<%= program.programFile %>)</span>
+                                    </div>
+                                    <div class="program-stats">
+                                        <%= program.doneQuantity %> / <%= program.planQuantity %> шт.
+                                        <% if (progDone) { %> ✅ <% } %>
+                                    </div>
+                                </div>
+                                
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width:<%= progPercent %>%;"></div>
+                                </div>
+                                
+                                <!-- Блок действий для каждой детали -->
+                                <div class="program-actions">
+                                    <!-- Форма ввода количества -->
+                                    <form action="/api/operations" method="post" class="inline-form" data-program-id="<%= program.id %>" data-task-id="<%= task.id %>">
+                                        <input type="hidden" name="taskId" value="<%= task.id %>">
+                                        <input type="hidden" name="programId" value="<%= program.id %>">
+                                        
+                                        <div class="form-group">
+                                            <label>Станок</label>
+                                            <select name="machineId" class="form-select" required>
+                                                <option value="">Выбрать</option>
+                                                <% for (let i = 1; i <= 15; i++) { %>
+                                                    <option value="<%= i %>">№<%= i %></option>
+                                                <% } %>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label>Количество</label>
+                                            <input type="number" name="quantity" class="form-input" placeholder="шт." min="1" required>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary">📝 Ввести</button>
+                                    </form>
+                                    
+                                    <!-- Кнопка печати -->
+                                    <button class="btn btn-secondary" onclick="printLabel('<%= task.id %>', '<%= program.id %>')">
+                                        🖨️ Печать
+                                    </button>
+                                    
+                                    <!-- Кнопка отмены (всегда, если есть операции) -->
+                                    <% if (program.doneQuantity > 0) { %>
+                                        <form action="/api/operations/undo/<%= task.id %>" method="post" style="display:inline;" 
+                                              onsubmit="return confirm('⚠️ Отменить последнюю операцию для детали «<%= program.name %>»?')">
+                                            <input type="hidden" name="programId" value="<%= program.id %>">
+                                            <button type="submit" class="btn btn-danger">↩️ Отменить</button>
+                                        </form>
+                                    <% } else { %>
+                                        <span style="color:#555; font-size:12px; padding:4px 12px;">Нет операций</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } %>
+                    
+                    <!-- Общий прогресс -->
+                    <div class="task-footer">
+                        <div class="total-progress">
+                            <span>📊 Общий прогресс</span>
+                            <span><%= totalDone %> из <%= totalPlan %> шт. (<%= Math.round(totalPercent) %>%)</span>
+                        </div>
+                        <div class="progress-bar" style="height:8px;">
+                            <div class="progress-fill" style="width:<%= totalPercent %>%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <% }); %>
+            <% } else { %>
+                <div class="empty-state">
+                    <span class="empty-icon">📭</span>
+                    <p>Нет активных заданий</p>
+                    <span style="color:#555;">Ожидайте новых задач от администратора</span>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+    
+    <script>
+        // Обработка форм без перезагрузки
+        document.querySelectorAll('.inline-form').forEach(form => {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const data = {
+                    taskId: formData.get('taskId'),
+                    programId: formData.get('programId'),
+                    machineId: formData.get('machineId'),
+                    quantity: formData.get('quantity')
+                };
+                
+                const btn = this.querySelector('button[type="submit"]');
+                btn.textContent = '⏳...';
+                btn.disabled = true;
+                
+                try {
+                    const response = await fetch('/api/operations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('✅ Сохранено! ' + result.quantity + ' шт. для "' + result.programName + '"');
+                        location.reload();
+                    } else {
+                        alert('❌ ' + (result.error || 'Ошибка'));
+                    }
+                } catch (err) {
+                    alert('❌ Ошибка: ' + err.message);
+                } finally {
+                    btn.textContent = '📝 Ввести';
+                    btn.disabled = false;
+                }
+            });
+        });
+        
+        function printLabel(taskId, programId) {
+            alert('🖨️ Печать этикетки\nЗадание: ' + taskId + '\nДеталь: ' + programId);
+        }
+    </script>
+</body>
+</html>
