@@ -290,7 +290,7 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
 });
 
 // ========================================
-//  УДАЛЕНИЕ ЗАДАНИЯ (ДОБАВЛЕНО!)
+//  УДАЛЕНИЕ ЗАДАНИЯ
 // ========================================
 
 app.post('/api/tasks/delete/:id', async (req, res) => {
@@ -576,8 +576,10 @@ httpServer.listen(PORT, async () => {
     console.log(`🚀 Dika Knit работает на http://localhost:${PORT}`);
     await sequelize.authenticate();
     console.log('✅ База данных подключена');
-    await sequelize.sync({ alter: true });
-    console.log('✅ Таблицы созданы');
+    
+    // ✅ ПРИНУДИТЕЛЬНОЕ ПЕРЕСОЗДАНИЕ ТАБЛИЦ (ВСЕ ДАННЫЕ УДАЛЯТСЯ!)
+    await sequelize.sync({ force: true });
+    console.log('✅ Таблицы пересозданы');
 
     const adminExists = await User.findOne({ where: { login: 'admin' } });
     if (!adminExists) {
