@@ -3,7 +3,8 @@ const { Sequelize, DataTypes } = require('sequelize');
 
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
-    logging: false
+    logging: false,
+    timezone: '+03:00'  // Московское время (GMT+3)
 });
 
 // ========================================
