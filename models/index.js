@@ -1,0 +1,112 @@
+require('dotenv').config();
+const { Sequelize, DataTypes } = require('sequelize');
+
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    logging: false,
+    timezone: '+03:00'
+});
+
+// ========================================
+//  ПОЛЬЗОВАТЕЛИ
+// ========================================
+
+const User = sequelize.define('User', {
+    login: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    fullName: { type: DataTypes.STRING, allowNull: false },
+    isAdmin: { type: DataTypes.BOOLEAN, defaultValue: false }
+});
+
+// ========================================
+//  СТАНКИ
+// ========================================
+
+const Machine = sequelize.define('Machine', {
+    machineNumber: { type: DataTypes.INTEGER, unique: true, allowNull: false },
+    isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
+});
+
+// ========================================
+//  МОДЕЛИ
+// ========================================
+
+const Model = sequelize.define('Model', {
+    name: { type: DataTypes.STRING, allowNull: false, unique: true },
+    program: { type: DataTypes.STRING, allowNull: false },
+    size: { type: DataTypes.STRING, allowNull: false },
+    className: { type: DataTypes.STRING, allowNull: false },
+    yarn: { type: DataTypes.STRING, allowNull: false },
+    image: { type: DataTypes.TEXT, allowNull: true },
+    isCoat: { type: DataTypes.BOOLEAN, defaultValue: false }
+});
+
+// ========================================
+//  ДЕТАЛИ КОФТЫ
+// ========================================
+
+const ModelPart = sequelize.define('ModelPart', {
+    partName: { type: DataTypes.STRING, allowNull: false },
+    program: { type: DataTypes.STRING, allowNull: false },
+    size: { type: DataTypes.STRING, allowNull: false },
+    className: { type: DataTypes.STRING, allowNull: false },
+    yarn: { type: DataTypes.STRING, allowNull: false },
+    image: { type: DataTypes.TEXT, allowNull: true }
+});
+
+// ========================================
+//  ЦВЕТА
+// ========================================
+
+const Color = sequelize.define('Color', {
+    name: { type: DataTypes.STRING, allowNull: false, unique: true }
+});
+
+// ========================================
+//  ЗАДАНИЯ
+// ========================================
+
+const Task = sequelize.define('Task', {
+    planQuantity: { type: DataTypes.INTEGER, allowNull: false },
+    isUrgent: { type: DataTypes.BOOLEAN, defaultValue: false },
+    status: { type: DataTypes.ENUM('pending', 'in_progress', 'completed'), defaultValue: 'pending' },
+    lastPrintedAt: { type: DataTypes.DATE, defaultValue: null }
+});
+
+// ========================================
+//  ОПЕРАЦИИ (ВЫРАБОТКА)
+// ========================================
+
+const Operation = sequelize.define('Operation', {
+    quantity: { type: DataTypes.INTEGER, allowNull: false },
+    printedAt: { type: DataTypes.DATE, defaultValue: null }
+});
+
+// ========================================
+//  СВЯЗИ
+// ========================================
+
+// Модель → Детали
+Model.hasMany(ModelPart, { as: 'parts', foreignKey: 'modelId' });
+ModelPart.belongsTo(Model, { foreignKey: 'modelId' });
+
+// Задание → Модель, Цвет
+Task.belongsTo(Model, { foreignKey: 'modelId' });
+Task.belongsTo(Color, { foreignKey: 'colorId' });
+
+// Операции → Задание, Пользователь, Станок
+Task.hasMany(Operation, { as: 'operations', foreignKey: 'taskId' });
+Operation.belongsTo(Task, { foreignKey: 'taskId' });
+Operation.belongsTo(User, { as: 'employee', foreignKey: 'employeeId' });
+Operation.belongsTo(Machine, { as: 'machine', foreignKey: 'machineId' });
+
+module.exports = {
+    sequelize,
+    User,
+    Machine,
+    Model,
+    ModelPart,
+    Color,
+    Task,
+    Operation
+};
