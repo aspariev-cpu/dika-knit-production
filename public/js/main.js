@@ -5,7 +5,7 @@
  * ========================================
  */
 
-// ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (через window, чтобы избежать конфликтов) -----
+// ----- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (через window) -----
 window.currentTaskId = null;
 window.currentProgramId = null;
 window.cancelTimer = null;
@@ -18,12 +18,6 @@ const socket = io();
 // 1. МОДАЛЬНОЕ ОКНО (ввод выработки)
 // ========================================
 
-/**
- * Открыть модальное окно для ввода выработки
- * @param {number} taskId - ID задания
- * @param {number} programId - ID программы
- * @param {string} programName - Название программы
- */
 function openModal(taskId, programId, programName) {
     console.log('🔍 openModal вызван:', { taskId, programId, programName });
     
@@ -44,11 +38,8 @@ function openModal(taskId, programId, programName) {
     taskIdInput.value = String(taskId);
     programIdInput.value = String(programId);
     title.textContent = '📦 ' + programName;
-    
-    // Меняем action формы, добавляя programId в URL
     form.action = '/api/operations?programId=' + String(programId) + '&taskId=' + String(taskId);
     
-    console.log('✅ Action формы изменен на:', form.action);
     console.log('✅ Установлены значения:', {
         taskId: taskIdInput.value,
         programId: programIdInput.value
@@ -57,9 +48,6 @@ function openModal(taskId, programId, programName) {
     modal.classList.add('active');
 }
 
-/**
- * Закрыть модальное окно
- */
 function closeModal() {
     const modal = document.getElementById('modal');
     if (modal) {
@@ -68,9 +56,6 @@ function closeModal() {
     resetCancelTimer();
 }
 
-/**
- * Закрыть модальное окно при клике на фон
- */
 window.onclick = function(event) {
     const modal = document.getElementById('modal');
     if (event.target === modal) {
@@ -82,12 +67,6 @@ window.onclick = function(event) {
 // 2. ПЕЧАТЬ ЭТИКЕТКИ
 // ========================================
 
-/**
- * Печать этикетки (60×40 мм)
- * @param {number} taskId - ID задания
- * @param {number} operationId - ID операции (опционально)
- * @param {object} data - Данные для этикетки (опционально)
- */
 function printLabel(taskId, operationId, data) {
     const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
     
@@ -222,9 +201,6 @@ function printLabel(taskId, operationId, data) {
 // 3. ОБРАБОТЧИК ФОРМЫ ВЫРАБОТКИ
 // ========================================
 
-/**
- * Обработка отправки формы выработки
- */
 async function submitOperation(event) {
     event.preventDefault();
     
@@ -237,9 +213,7 @@ async function submitOperation(event) {
         quantity: formData.get('quantity')
     };
     
-    // Проверяем, что programId есть
     if (!data.programId) {
-        // Пробуем восстановить из глобальной переменной
         if (window.currentProgramId) {
             data.programId = window.currentProgramId;
         }
@@ -248,9 +222,6 @@ async function submitOperation(event) {
         }
     }
     
-    console.log('📤 Отправка данных:', data);
-    
-    // Если всё равно нет programId — ошибка
     if (!data.programId) {
         alert('❌ Ошибка: не выбран ID детали');
         return;
@@ -271,7 +242,7 @@ async function submitOperation(event) {
         
         if (result.success) {
             closeModal();
-            showPrintModal(result);
+            showPrintPreview(result);
         } else {
             showNotification('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
             submitBtn.disabled = false;
@@ -286,36 +257,34 @@ async function submitOperation(event) {
 }
 
 // ========================================
-// 4. МОДАЛЬНОЕ ОКНО ДЛЯ ПЕЧАТИ
+// 4. ПРЕДПРОСМОТР БИРКИ
 // ========================================
 
-function showPrintModal(data) {
-    let printModal = document.getElementById('printModal');
+function showPrintPreview(data) {
+    let printModal = document.getElementById('printPreviewModal');
     if (!printModal) {
         printModal = document.createElement('div');
-        printModal.id = 'printModal';
+        printModal.id = 'printPreviewModal';
         printModal.className = 'modal';
         printModal.innerHTML = `
-            <div class="modal-content" style="max-width: 450px; text-align: center;">
-                <h2 style="color: #51cf66; margin-bottom: 10px;">✅ Сохранено!</h2>
-                <p style="color: #aaa; margin-bottom: 5px;">
-                    <span id="printModelName" style="font-weight: 700; color: #fff;"></span>
-                </p>
-                <p style="color: #c9a959; font-size: 24px; font-weight: 700; margin-bottom: 10px;">
-                    <span id="printQuantity"></span> шт.
-                </p>
-                <p style="color: #888; font-size: 14px; margin-bottom: 5px;">
-                    📊 Связано: <span id="printTotalDone"></span> из <span id="printPlan"></span> шт.
-                </p>
-                <p style="color: #888; font-size: 14px; margin-bottom: 20px;">
-                    🖨️ Напечатать этикетку для этой партии?
-                </p>
-                <div class="modal-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button id="printConfirmBtn" class="btn btn-primary" style="flex: 1; min-width: 120px;">🖨️ Печать</button>
-                    <button id="printSkipBtn" class="btn btn-secondary" style="flex: 1; min-width: 120px;">Позже</button>
-                    ${data.taskCompleted ? `<button id="printCompleteBtn" class="btn btn-success" style="flex: 1; min-width: 120px;">✅ Завершить</button>` : ''}
+            <div class="modal-content" style="max-width: 500px; text-align: center;">
+                <h2 style="color: #c9a959; margin-bottom: 10px;">🖨️ Предпросмотр бирки</h2>
+                <div id="printPreviewContent" style="background: #fff; padding: 20px; border-radius: 8px; margin: 15px 0; color: #000; text-align: left;">
+                    <div style="font-size: 12px; color: #c9a959; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 8px;">
+                        ✦ Dika Knit
+                    </div>
+                    <div id="previewModel" style="font-size: 18px; font-weight: 700; color: #0f0c29;"></div>
+                    <div id="previewDetails" style="font-size: 12px; color: #555;"></div>
+                    <div id="previewQuantity" style="font-size: 14px; font-weight: 600; color: #c9a959; margin-top: 5px;"></div>
+                    <div id="previewFooter" style="font-size: 8px; color: #aaa; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; text-align: center;">
+                        Dika Knit Production
+                    </div>
                 </div>
-                <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="printPreviewBtn" class="btn btn-primary" style="flex: 1;">🖨️ Печать</button>
+                    <button id="printPreviewCloseBtn" class="btn btn-secondary" style="flex: 1;">✖️ Закрыть</button>
+                </div>
+                <div style="margin-top: 10px; font-size: 11px; color: #666;">
                     ⏳ Этикетку можно напечатать в течение 1 часа
                 </div>
             </div>
@@ -324,91 +293,62 @@ function showPrintModal(data) {
         
         printModal.addEventListener('click', function(e) {
             if (e.target === printModal) {
-                closePrintModal();
+                closePrintPreview();
             }
         });
     }
     
-    document.getElementById('printModelName').textContent = data.modelName || 'Неизвестно';
-    document.getElementById('printQuantity').textContent = data.quantity || '0';
-    document.getElementById('printTotalDone').textContent = data.totalDone || '0';
-    document.getElementById('printPlan').textContent = data.planQuantity || '0';
+    const workerName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
+    const date = new Date().toLocaleDateString('ru-RU');
+    
+    document.getElementById('previewModel').textContent = data.modelName || 'Неизвестно';
+    document.getElementById('previewDetails').innerHTML = `
+        Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
+        Программа: ${data.programFile || '—'}<br>
+        Станок: №${data.machineId || '—'}<br>
+        Вязал: ${workerName} | Дата: ${date}
+    `;
+    document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
     
     printModal.dataset.taskId = data.taskId;
     printModal.dataset.operationId = data.operationId;
     printModal.dataset.data = JSON.stringify(data);
-    printModal.dataset.taskCompleted = data.taskCompleted || false;
     
     printModal.classList.add('active');
     
-    document.getElementById('printConfirmBtn').onclick = function() {
+    document.getElementById('printPreviewBtn').onclick = function() {
         const taskId = printModal.dataset.taskId;
         const operationId = printModal.dataset.operationId;
         const dataStr = printModal.dataset.data;
         const data = JSON.parse(dataStr);
         
         printLabel(taskId, operationId, data);
-        closePrintModal();
+        closePrintPreview();
         showNotification('🖨️ Этикетка отправлена на печать', 'success');
         
-        if (printModal.dataset.taskCompleted === 'true') {
-            completeTask(taskId);
-        } else {
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        }
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
     };
     
-    document.getElementById('printSkipBtn').onclick = function() {
-        closePrintModal();
+    document.getElementById('printPreviewCloseBtn').onclick = function() {
+        closePrintPreview();
         showNotification('💾 Выработка сохранена. Этикетку можно напечатать позже.', 'info');
-        
-        if (printModal.dataset.taskCompleted === 'true') {
-            completeTask(printModal.dataset.taskId);
-        } else {
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        }
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
     };
-    
-    const completeBtn = document.getElementById('printCompleteBtn');
-    if (completeBtn) {
-        completeBtn.onclick = function() {
-            const taskId = printModal.dataset.taskId;
-            closePrintModal();
-            completeTask(taskId);
-        };
-    }
 }
 
-function closePrintModal() {
-    const printModal = document.getElementById('printModal');
-    if (printModal) {
-        printModal.classList.remove('active');
-    }
-}
-
-// ---- ФУНКЦИЯ ЗАВЕРШЕНИЯ ЗАДАНИЯ ----
-async function completeTask(taskId) {
-    try {
-        const response = await fetch('/api/tasks/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ taskId })
-        });
-        if (response.ok) {
-            showNotification('✅ Задание завершено!', 'success');
-            setTimeout(() => location.reload(), 1000);
-        }
-    } catch (err) {
-        console.error(err);
+function closePrintPreview() {
+    const modal = document.getElementById('printPreviewModal');
+    if (modal) {
+        modal.classList.remove('active');
     }
 }
 
 // ========================================
-// 5. ТАЙМЕР ОТМЕНЫ (1 час)
+// 5. ТАЙМЕР ОТМЕНЫ
 // ========================================
 
 function startCancelTimer(operationId, taskId) {
@@ -530,7 +470,7 @@ function showNotification(message, type) {
 }
 
 // ========================================
-// 7. SOCKET.IO
+// 7. SOCKET.IO (ОНЛАЙН-ОБНОВЛЕНИЕ)
 // ========================================
 
 if (typeof io !== 'undefined') {
@@ -548,6 +488,49 @@ if (typeof io !== 'undefined') {
         setTimeout(function() {
             location.reload();
         }, 1500);
+    });
+    
+    // ✅ ОБНОВЛЕНИЕ БЕЗ ПЕРЕЗАГРУЗКИ
+    socket.on('operationSaved', function(data) {
+        console.log('🔄 Обновление:', data);
+        showNotification(`✅ ${data.programName}: ${data.doneQuantity}/${data.planQuantity} шт.`, 'success');
+        
+        const taskCard = document.querySelector(`.task-card[data-task-id="${data.taskId}"]`);
+        if (taskCard) {
+            const programItems = taskCard.querySelectorAll('.program-item');
+            programItems.forEach(item => {
+                const statsSpan = item.querySelector('.program-stats');
+                const progressFill = item.querySelector('.progress-fill');
+                if (statsSpan && statsSpan.textContent.includes(data.programName)) {
+                    statsSpan.textContent = `${data.doneQuantity}/${data.planQuantity} шт. ${data.doneQuantity >= data.planQuantity ? '✅' : ''}`;
+                    if (progressFill) {
+                        const percent = Math.min((data.doneQuantity / data.planQuantity) * 100, 100);
+                        progressFill.style.width = percent + '%';
+                    }
+                }
+            });
+            
+            // Обновляем общий прогресс
+            const totalProgress = taskCard.querySelector('.total-progress span:last-child');
+            const totalFill = taskCard.querySelector('.task-footer .progress-fill');
+            if (totalProgress) {
+                const allSpans = taskCard.querySelectorAll('.program-stats');
+                let totalDone = 0;
+                let totalPlan = 0;
+                allSpans.forEach(span => {
+                    const match = span.textContent.match(/(\d+)\s*\/\s*(\d+)/);
+                    if (match) {
+                        totalDone += parseInt(match[1]);
+                        totalPlan += parseInt(match[2]);
+                    }
+                });
+                const percent = Math.min((totalDone / totalPlan) * 100, 100);
+                totalProgress.textContent = `${totalDone} из ${totalPlan} шт. (${Math.round(percent)}%)`;
+                if (totalFill) {
+                    totalFill.style.width = percent + '%';
+                }
+            }
+        }
     });
     
     socket.on('connect', function() {
@@ -600,6 +583,7 @@ window.showNotification = showNotification;
 window.startCancelTimer = startCancelTimer;
 window.resetCancelTimer = resetCancelTimer;
 window.submitOperation = submitOperation;
-window.closePrintModal = closePrintModal;
+window.closePrintPreview = closePrintPreview;
+window.showPrintPreview = showPrintPreview;
 
 console.log('✅ Dika Knit JS загружен!');
