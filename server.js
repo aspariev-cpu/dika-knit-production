@@ -26,6 +26,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('io', io);
 
 // ========================================
+//  MIDDLEWARE: ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЯ ИЗ КУКИ
+// ========================================
+app.use(async (req, res, next) => {
+    try {
+        const token = req.cookies.token;
+        if (token) {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const user = await User.findByPk(decoded.id);
+            if (user) {
+                req.user = user;
+            }
+        }
+        next();
+    } catch (err) {
+        next();
+    }
+});
+
+// ========================================
 //  МАРШРУТЫ
 // ========================================
 
@@ -176,9 +195,11 @@ app.get('/worker', async (req, res) => {
             ]
         });
 
+        const workerName = req.user ? req.user.fullName : 'Вязальщик';
+
         res.render('worker/dashboard', {
             tasks,
-            user: { fullName: 'Вязальщик' }
+            user: { fullName: workerName }
         });
     } catch (err) {
         console.error(err);
@@ -561,9 +582,14 @@ app.post('/api/operations', async (req, res) => {
         
         console.log('✅ Найдена программа:', program.name, 'ID:', program.id);
         
+        // ✅ БЕРЁМ ID ВЯЗАЛЬЩИКА ИЗ req.user
+        const userId = req.user ? req.user.id : 1;
+        console.log('👤 Вязальщик ID:', userId);
+        console.log('👤 Вязальщик имя:', req.user ? req.user.fullName : 'Неизвестный');
+        
         const operation = await Operation.create({
             programId: parseInt(programId),
-            employeeId: 1,
+            employeeId: userId,
             machineId: parseInt(machineId),
             quantity: parseInt(quantity)
         });
@@ -581,12 +607,11 @@ app.post('/api/operations', async (req, res) => {
         const allPrograms = await Program.findAll({ where: { taskId } });
         const allDone = allPrograms.every(p => p.doneQuantity >= p.planQuantity);
         
-        // ✅ Если все детали выполнены — запускаем таймер, НО НЕ МЕНЯЕМ СТАТУС!
         if (allDone && task.status !== 'completed') {
             await task.update({ 
                 lastPrintedAt: new Date()
             });
-            console.log(`✅ Задание ${task.modelName} полностью выполнено! Таймер запущен! Задание остаётся активным.`);
+            console.log(`✅ Задание ${task.modelName} полностью выполнено! Таймер запущен!`);
         }
         
         res.json({
@@ -673,7 +698,7 @@ app.get('/admin/shifts', async (req, res) => {
             where: whereClause,
             include: [
                 { model: User, as: 'employee' },
-                { model: Program }, // ✅ БЕЗ алиаса
+                { model: Program },
                 { model: Machine, as: 'machine' }
             ],
             order: [['createdAt', 'DESC']]
@@ -691,7 +716,7 @@ app.get('/admin/shifts', async (req, res) => {
             }
             summary[name].total += op.quantity;
             if (op.machine) summary[name].machines.add(op.machine.machineNumber);
-            if (op.Program) summary[name].programs.add(op.Program.name); // ✅ op.Program с большой буквы
+            if (op.Program) summary[name].programs.add(op.Program.name);
         });
         
         const formattedSummary = Object.keys(summary).map(name => ({
