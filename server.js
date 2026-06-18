@@ -582,10 +582,7 @@ app.post('/api/operations', async (req, res) => {
         
         console.log('✅ Найдена программа:', program.name, 'ID:', program.id);
         
-        // ✅ БЕРЁМ ID ВЯЗАЛЬЩИКА ИЗ req.user
         const userId = req.user ? req.user.id : 1;
-        console.log('👤 Вязальщик ID:', userId);
-        console.log('👤 Вязальщик имя:', req.user ? req.user.fullName : 'Неизвестный');
         
         const operation = await Operation.create({
             programId: parseInt(programId),
@@ -614,6 +611,17 @@ app.post('/api/operations', async (req, res) => {
             console.log(`✅ Задание ${task.modelName} полностью выполнено! Таймер запущен!`);
         }
         
+        // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕНИЕ ВСЕМ КЛИЕНТАМ
+        const io = req.app.get('io');
+        io.emit('operationSaved', {
+            taskId: task.id,
+            programId: program.id,
+            programName: program.name,
+            doneQuantity: newDone,
+            planQuantity: program.planQuantity,
+            allDone: allDone
+        });
+        
         res.json({
             success: true,
             operationId: operation.id,
@@ -623,7 +631,12 @@ app.post('/api/operations', async (req, res) => {
             programDone: newDone,
             programPlan: program.planQuantity,
             allDone: allDone,
-            taskCompleted: allDone
+            taskCompleted: allDone,
+            color: task.color,
+            className: task.className,
+            programFile: program.programFile,
+            machineId: machineId,
+            modelName: task.modelName
         });
         
     } catch (err) {
@@ -716,115 +729,4 @@ app.get('/admin/shifts', async (req, res) => {
             }
             summary[name].total += op.quantity;
             if (op.machine) summary[name].machines.add(op.machine.machineNumber);
-            if (op.Program) summary[name].programs.add(op.Program.name);
-        });
-        
-        const formattedSummary = Object.keys(summary).map(name => ({
-            name,
-            total: summary[name].total,
-            machines: Array.from(summary[name].machines).join(', '),
-            programs: Array.from(summary[name].programs).join(', ')
-        }));
-        
-        res.render('admin/shifts', {
-            summary: formattedSummary,
-            operations: operations,
-            date: date || new Date().toISOString().split('T')[0],
-            shift: shift || 'day',
-            user: { fullName: 'Администратор', isAdmin: true }
-        });
-    } catch (err) {
-        console.error('Ошибка при загрузке статистики:', err);
-        res.status(500).send('Ошибка при загрузке статистики: ' + err.message);
-    }
-});
-
-// ---- АВТОМАТИЧЕСКОЕ ЗАВЕРШЕНИЕ ----
-async function checkCompletedTasks() {
-    try {
-        const tasks = await Task.findAll({
-            where: {
-                status: ['pending', 'in_progress'],
-                lastPrintedAt: { [Op.ne]: null }
-            },
-            include: [{ model: Program, as: 'programs' }]
-        });
-        
-        const now = new Date();
-        for (const task of tasks) {
-            const allDone = task.programs.every(p => p.doneQuantity >= p.planQuantity);
-            if (!allDone) continue;
-            
-            const diffMs = now - new Date(task.lastPrintedAt);
-            const diffMinutes = diffMs / (1000 * 60);
-            
-            if (diffMinutes >= 60) {
-                task.status = 'completed';
-                await task.save();
-                const io = app.get('io');
-                io.emit('taskCompleted', task);
-                console.log(`✅ Задание ${task.modelName} завершено автоматически через час`);
-            }
-        }
-    } catch (err) {
-        console.error('Ошибка проверки заданий:', err);
-    }
-}
-
-setInterval(checkCompletedTasks, 60000);
-
-// ========================================
-//  ЗАПУСК
-// ========================================
-
-const PORT = process.env.PORT || 3000;
-
-httpServer.listen(PORT, async () => {
-    console.log(`🚀 Dika Knit работает на http://localhost:${PORT}`);
-    
-    try {
-        await sequelize.authenticate();
-        console.log('✅ База данных подключена');
-        
-        await sequelize.sync({ alter: true });
-        console.log('✅ Таблицы созданы');
-        
-        const adminExists = await User.findOne({ where: { login: 'admin' } });
-        if (!adminExists) {
-            const hashedPassword = await bcrypt.hash('admin123', 10);
-            await User.create({
-                login: 'admin',
-                password: hashedPassword,
-                fullName: 'Администратор',
-                isAdmin: true
-            });
-            console.log('✅ Создан админ: admin / admin123');
-        }
-        
-        const workerExists = await User.findOne({ where: { login: '001' } });
-        if (!workerExists) {
-            const hashedPassword = await bcrypt.hash('worker123', 10);
-            await User.create({
-                login: '001',
-                password: hashedPassword,
-                fullName: 'Иванов И.И.',
-                isAdmin: false
-            });
-            console.log('✅ Создан вязальщик: 001 / worker123');
-        }
-        
-        for (let i = 1; i <= 15; i++) {
-            const exists = await Machine.findOne({ where: { machineNumber: i } });
-            if (!exists) {
-                await Machine.create({ machineNumber: i, isActive: true });
-            }
-        }
-        console.log('✅ 15 станков готовы');
-        
-        console.log('✅ Готово!');
-        console.log('📝 Вход: admin/admin123 или 001/worker123');
-        
-    } catch (err) {
-        console.error('❌ Ошибка при запуске:', err);
-    }
-});
+            if (op.Program) summary[name].programs.add
