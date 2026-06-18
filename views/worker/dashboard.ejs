@@ -57,7 +57,7 @@
                             let progPercent = Math.min((program.doneQuantity / program.planQuantity) * 100, 100);
                             let progDone = program.doneQuantity >= program.planQuantity;
                         %>
-                            <div class="program-item">
+                            <div class="program-item" data-program-id="<%= program.id %>">
                                 <div class="program-header">
                                     <div class="program-name">
                                         <strong><%= program.name %></strong>
@@ -98,7 +98,7 @@
                                         <button type="submit" class="btn btn-primary">📝 Ввести</button>
                                     </form>
                                     
-                                    <!-- Кнопка печати -->
+                                    <!-- Кнопка печати (ОБНОВЛЕНА) -->
                                     <button class="btn btn-secondary" onclick="printLabel('<%= task.id %>', '<%= program.id %>')">
                                         🖨️ Печать
                                     </button>
@@ -171,8 +171,13 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        alert('✅ Сохранено! ' + result.quantity + ' шт. для "' + result.programName + '"');
-                        location.reload();
+                        // ✅ ВЫЗЫВАЕМ ПРЕДПРОСМОТР БИРКИ
+                        if (typeof showPrintPreview === 'function') {
+                            showPrintPreview(result);
+                        } else {
+                            alert('✅ Сохранено! ' + result.quantity + ' шт. для "' + result.programName + '"');
+                            location.reload();
+                        }
                     } else {
                         alert('❌ ' + (result.error || 'Ошибка'));
                     }
@@ -185,8 +190,140 @@
             });
         });
         
+        // ========================================
+        // НОВАЯ ФУНКЦИЯ ПЕЧАТИ (открывает окно с этикеткой)
+        // ========================================
         function printLabel(taskId, programId) {
-            alert('🖨️ Печать этикетки\nЗадание: ' + taskId + '\nДеталь: ' + programId);
+            console.log('🖨️ Печать:', { taskId, programId });
+            
+            const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+            if (!taskCard) {
+                alert('❌ Задание не найдено');
+                return;
+            }
+            
+            const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+            const color = taskCard.querySelector('.color-dot')?.style?.background || '—';
+            const className = taskCard.querySelector('.task-meta strong')?.textContent || '—';
+            
+            const programItem = document.querySelector(`.program-item[data-program-id="${programId}"]`);
+            const programName = programItem?.querySelector('.program-name strong')?.textContent || 'Деталь';
+            const programFile = programItem?.querySelector('.program-name span')?.textContent?.replace(/[()]/g, '') || '—';
+            const statsText = programItem?.querySelector('.program-stats')?.textContent || '';
+            const quantity = statsText.split('/')[0]?.trim() || '0';
+            
+            const worker = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
+            const date = new Date().toLocaleDateString('ru-RU');
+            
+            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            if (!printWindow) {
+                alert('❌ Разрешите всплывающие окна для печати');
+                return;
+            }
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Этикетка Dika Knit</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            min-height: 100vh;
+                            background: #f5f5f5;
+                            font-family: Arial, sans-serif;
+                        }
+                        .label {
+                            width: 60mm;
+                            height: 40mm;
+                            background: #ffffff;
+                            border: 2px solid #0f0c29;
+                            border-radius: 4px;
+                            padding: 4mm 5mm;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                        }
+                        .label .brand {
+                            font-size: 10px;
+                            font-weight: 800;
+                            color: #c9a959;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                            border-bottom: 1px solid #eee;
+                            padding-bottom: 2px;
+                            margin-bottom: 4px;
+                        }
+                        .label .model {
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: #0f0c29;
+                        }
+                        .label .info {
+                            font-size: 10px;
+                            color: #555;
+                            margin: 1px 0;
+                        }
+                        .label .info span {
+                            font-weight: 600;
+                            color: #0f0c29;
+                        }
+                        .label .footer {
+                            margin-top: 4px;
+                            font-size: 8px;
+                            color: #aaa;
+                            border-top: 1px solid #eee;
+                            padding-top: 3px;
+                            text-align: center;
+                        }
+                        .label .color-dot {
+                            display: inline-block;
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 50%;
+                            vertical-align: middle;
+                            margin-right: 4px;
+                            border: 1px solid #ddd;
+                        }
+                        @media print {
+                            body { background: white; }
+                            .label { border-color: #000; box-shadow: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <div class="brand">✦ Dika Knit</div>
+                        <div class="model">${modelName}</div>
+                        <div class="info">
+                            <span class="color-dot" style="background:${color};"></span>
+                            Цвет: <span>${color}</span>
+                        </div>
+                        <div class="info">Класс: <span>${className}</span></div>
+                        <div class="info">Деталь: <span>${programName}</span></div>
+                        <div class="info">Программа: <span>${programFile}</span></div>
+                        <div class="info">Количество: <span>${quantity} шт.</span></div>
+                        <div class="info">Вязал: <span>${worker}</span></div>
+                        <div class="info">Дата: <span>${date}</span></div>
+                        <div class="footer">Dika Knit Production</div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                setTimeout(function() { window.close(); }, 500);
+                            }, 300);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
     </script>
 </body>
