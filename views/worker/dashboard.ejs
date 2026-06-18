@@ -98,7 +98,7 @@
                                         <button type="submit" class="btn btn-primary">📝 Ввести</button>
                                     </form>
                                     
-                                    <!-- Кнопка печати (ОБНОВЛЕНА) -->
+                                    <!-- Кнопка печати -->
                                     <button class="btn btn-secondary" onclick="printLabel('<%= task.id %>', '<%= program.id %>')">
                                         🖨️ Печать
                                     </button>
@@ -171,7 +171,6 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        // ✅ ВЫЗЫВАЕМ ПРЕДПРОСМОТР БИРКИ
                         if (typeof showPrintPreview === 'function') {
                             showPrintPreview(result);
                         } else {
@@ -191,7 +190,7 @@
         });
         
         // ========================================
-        // НОВАЯ ФУНКЦИЯ ПЕЧАТИ (открывает окно с этикеткой)
+        // НОВАЯ ФУНКЦИЯ ПЕЧАТИ (этикетка 58×40 мм)
         // ========================================
         function printLabel(taskId, programId) {
             console.log('🖨️ Печать:', { taskId, programId });
@@ -238,56 +237,59 @@
                             font-family: Arial, sans-serif;
                         }
                         .label {
-                            width: 60mm;
+                            width: 58mm;
                             height: 40mm;
                             background: #ffffff;
                             border: 2px solid #0f0c29;
-                            border-radius: 4px;
-                            padding: 4mm 5mm;
+                            border-radius: 2px;
+                            padding: 3mm 4mm;
                             display: flex;
                             flex-direction: column;
                             justify-content: center;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
                         }
                         .label .brand {
-                            font-size: 10px;
+                            font-size: 9px;
                             font-weight: 800;
                             color: #c9a959;
                             text-transform: uppercase;
-                            letter-spacing: 1px;
+                            letter-spacing: 0.8px;
                             border-bottom: 1px solid #eee;
                             padding-bottom: 2px;
-                            margin-bottom: 4px;
+                            margin-bottom: 3px;
                         }
                         .label .model {
-                            font-size: 16px;
+                            font-size: 14px;
                             font-weight: 700;
                             color: #0f0c29;
+                            line-height: 1.2;
                         }
                         .label .info {
-                            font-size: 10px;
+                            font-size: 9px;
                             color: #555;
                             margin: 1px 0;
+                            line-height: 1.3;
                         }
                         .label .info span {
                             font-weight: 600;
                             color: #0f0c29;
                         }
                         .label .footer {
-                            margin-top: 4px;
-                            font-size: 8px;
+                            margin-top: 3px;
+                            font-size: 7px;
                             color: #aaa;
                             border-top: 1px solid #eee;
-                            padding-top: 3px;
+                            padding-top: 2px;
                             text-align: center;
+                            letter-spacing: 0.3px;
                         }
                         .label .color-dot {
                             display: inline-block;
-                            width: 10px;
-                            height: 10px;
+                            width: 8px;
+                            height: 8px;
                             border-radius: 50%;
                             vertical-align: middle;
-                            margin-right: 4px;
+                            margin-right: 3px;
                             border: 1px solid #ddd;
                         }
                         @media print {
@@ -307,7 +309,7 @@
                         <div class="info">Класс: <span>${className}</span></div>
                         <div class="info">Деталь: <span>${programName}</span></div>
                         <div class="info">Программа: <span>${programFile}</span></div>
-                        <div class="info">Количество: <span>${quantity} шт.</span></div>
+                        <div class="info">Кол-во: <span>${quantity} шт.</span></div>
                         <div class="info">Вязал: <span>${worker}</span></div>
                         <div class="info">Дата: <span>${date}</span></div>
                         <div class="footer">Dika Knit Production</div>
