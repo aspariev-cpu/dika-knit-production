@@ -322,7 +322,7 @@
         }
 
         // ========================================
-        //  ПЕЧАТЬ ЭТИКЕТКИ (С ИП, СРОЧНО, СТАНКОМ)
+        //  ПЕЧАТЬ ЭТИКЕТКИ (С ИП, СРОЧНО СПРАВА ОТ НАЗВАНИЯ, СТАНКОМ)
         // ========================================
         function printLabel(taskId, operationId, data) {
             const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
@@ -340,7 +340,6 @@
             const date = new Date().toLocaleDateString('ru-RU');
             const quantity = data?.quantity || taskCard.querySelector('.task-progress-block strong:first-child')?.textContent || '0';
             
-            // ✅ НОВЫЕ ДАННЫЕ: ИП, срочность, станок
             const ip = taskCard.dataset.ip || '—';
             const isUrgent = taskCard.dataset.urgent === 'true';
             const machineNumber = data?.machineId || taskCard.dataset.machine || '—';
@@ -389,21 +388,28 @@
                             justify-content: flex-start;
                             background: white;
                         }
+
+                        /* ✅ НАЗВАНИЕ И СРОЧНО В ОДНОЙ СТРОКЕ */
+                        .label .title-row {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 0.5px;
+                        }
                         
                         .label .model {
                             font-size: 15px;
                             font-weight: 700;
                             color: #000;
                             line-height: 1.1;
-                            margin-bottom: 0.5px;
                         }
                         
-                        .label .urgent {
+                        .label .urgent-badge {
                             font-size: 12px;
                             font-weight: 900;
                             color: #f87171;
-                            letter-spacing: 0.5px;
-                            margin-bottom: 0.5px;
+                            white-space: nowrap;
+                            margin-left: 8px;
                         }
                         
                         .label .quantity {
@@ -457,8 +463,10 @@
                 </head>
                 <body>
                     <div class="label">
-                        <div class="model">${modelName}</div>
-                        ${isUrgent ? '<div class="urgent">СРОЧНО</div>' : ''}
+                        <div class="title-row">
+                            <div class="model">${modelName}</div>
+                            ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
+                        </div>
                         <div class="quantity">${quantity} шт.</div>
                         <div class="info">
                             <span class="color-dot" style="background:${color};"></span>
