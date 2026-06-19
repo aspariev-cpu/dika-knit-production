@@ -4,7 +4,12 @@ const { Sequelize, DataTypes } = require('sequelize');
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
-    timezone: '+03:00'
+    dialectOptions: {
+        ssl: {
+            require: true,
+            rejectUnauthorized: false
+        }
+    }
 });
 
 // ========================================
@@ -12,23 +17,10 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
 // ========================================
 
 const User = sequelize.define('User', {
-    login: { 
-        type: DataTypes.STRING, 
-        unique: true, 
-        allowNull: false 
-    },
-    password: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    fullName: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    isAdmin: { 
-        type: DataTypes.BOOLEAN, 
-        defaultValue: false 
-    }
+    login: { type: DataTypes.STRING, unique: true, allowNull: false },
+    password: { type: DataTypes.STRING, allowNull: false },
+    fullName: { type: DataTypes.STRING, allowNull: false },
+    isAdmin: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
 // ========================================
@@ -36,15 +28,8 @@ const User = sequelize.define('User', {
 // ========================================
 
 const Machine = sequelize.define('Machine', {
-    machineNumber: { 
-        type: DataTypes.INTEGER, 
-        unique: true, 
-        allowNull: false 
-    },
-    isActive: { 
-        type: DataTypes.BOOLEAN, 
-        defaultValue: true 
-    }
+    machineNumber: { type: DataTypes.INTEGER, unique: true, allowNull: false },
+    isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
 });
 
 // ========================================
@@ -52,35 +37,13 @@ const Machine = sequelize.define('Machine', {
 // ========================================
 
 const Model = sequelize.define('Model', {
-    name: { 
-        type: DataTypes.STRING, 
-        allowNull: false, 
-        unique: true 
-    },
-    program: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    size: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    className: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    yarn: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    image: { 
-        type: DataTypes.TEXT, 
-        allowNull: true 
-    },
-    isCoat: { 
-        type: DataTypes.BOOLEAN, 
-        defaultValue: false 
-    }
+    name: { type: DataTypes.STRING, allowNull: false, unique: true },
+    program: { type: DataTypes.STRING, allowNull: false },
+    size: { type: DataTypes.STRING, allowNull: false },
+    className: { type: DataTypes.STRING, allowNull: false },
+    yarn: { type: DataTypes.STRING, allowNull: false },
+    image: { type: DataTypes.TEXT, allowNull: true },
+    isCoat: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
 // ========================================
@@ -88,30 +51,12 @@ const Model = sequelize.define('Model', {
 // ========================================
 
 const ModelPart = sequelize.define('ModelPart', {
-    partName: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    program: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    size: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    className: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    yarn: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-    },
-    image: { 
-        type: DataTypes.TEXT, 
-        allowNull: true 
-    }
+    partName: { type: DataTypes.STRING, allowNull: false },
+    program: { type: DataTypes.STRING, allowNull: false },
+    size: { type: DataTypes.STRING, allowNull: false },
+    className: { type: DataTypes.STRING, allowNull: false },
+    yarn: { type: DataTypes.STRING, allowNull: false },
+    image: { type: DataTypes.TEXT, allowNull: true }
 });
 
 // ========================================
@@ -119,11 +64,7 @@ const ModelPart = sequelize.define('ModelPart', {
 // ========================================
 
 const Color = sequelize.define('Color', {
-    name: { 
-        type: DataTypes.STRING, 
-        allowNull: false, 
-        unique: true 
-    }
+    name: { type: DataTypes.STRING, allowNull: false, unique: true }
 });
 
 // ========================================
@@ -131,27 +72,11 @@ const Color = sequelize.define('Color', {
 // ========================================
 
 const Task = sequelize.define('Task', {
-    planQuantity: { 
-        type: DataTypes.INTEGER, 
-        allowNull: false 
-    },
-    isUrgent: { 
-        type: DataTypes.BOOLEAN, 
-        defaultValue: false 
-    },
-    status: { 
-        type: DataTypes.ENUM('pending', 'in_progress', 'completed'), 
-        defaultValue: 'pending' 
-    },
-    lastPrintedAt: { 
-        type: DataTypes.DATE, 
-        defaultValue: null 
-    },
-    ip: { 
-        type: DataTypes.STRING, 
-        allowNull: true, 
-        defaultValue: null 
-    }
+    planQuantity: { type: DataTypes.INTEGER, allowNull: false },
+    isUrgent: { type: DataTypes.BOOLEAN, defaultValue: false },
+    status: { type: DataTypes.ENUM('pending', 'in_progress', 'completed'), defaultValue: 'pending' },
+    lastPrintedAt: { type: DataTypes.DATE, defaultValue: null },
+    ip: { type: DataTypes.STRING, allowNull: true, defaultValue: null }
 });
 
 // ========================================
@@ -159,14 +84,8 @@ const Task = sequelize.define('Task', {
 // ========================================
 
 const Operation = sequelize.define('Operation', {
-    quantity: { 
-        type: DataTypes.INTEGER, 
-        allowNull: false 
-    },
-    printedAt: { 
-        type: DataTypes.DATE, 
-        defaultValue: null 
-    }
+    quantity: { type: DataTypes.INTEGER, allowNull: false },
+    printedAt: { type: DataTypes.DATE, defaultValue: null }
 });
 
 // ========================================
@@ -174,60 +93,18 @@ const Operation = sequelize.define('Operation', {
 // ========================================
 
 // Модель → Детали
-Model.hasMany(ModelPart, { 
-    as: 'parts', 
-    foreignKey: 'modelId',
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE'
-});
-ModelPart.belongsTo(Model, { 
-    foreignKey: 'modelId' 
-});
+Model.hasMany(ModelPart, { as: 'parts', foreignKey: 'modelId' });
+ModelPart.belongsTo(Model, { foreignKey: 'modelId' });
 
 // Задание → Модель, Цвет
-Task.belongsTo(Model, { 
-    foreignKey: 'modelId' 
-});
-Task.belongsTo(Color, { 
-    foreignKey: 'colorId' 
-});
+Task.belongsTo(Model, { foreignKey: 'modelId' });
+Task.belongsTo(Color, { foreignKey: 'colorId' });
 
 // Операции → Задание, Пользователь, Станок
-Task.hasMany(Operation, { 
-    as: 'operations', 
-    foreignKey: 'taskId',
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE'
-});
-Operation.belongsTo(Task, { 
-    foreignKey: 'taskId' 
-});
-Operation.belongsTo(User, { 
-    as: 'employee', 
-    foreignKey: 'employeeId' 
-});
-Operation.belongsTo(Machine, { 
-    as: 'machine', 
-    foreignKey: 'machineId' 
-});
-
-// ========================================
-//  СИНХРОНИЗАЦИЯ БАЗЫ ДАННЫХ
-// ========================================
-
-async function syncDatabase() {
-    try {
-        await sequelize.authenticate();
-        console.log('✅ Подключение к базе данных установлено');
-        
-        // Синхронизация всех моделей
-        await sequelize.sync({ alter: true });
-        console.log('✅ Модели синхронизированы');
-    } catch (error) {
-        console.error('❌ Ошибка синхронизации:', error);
-        throw error;
-    }
-}
+Task.hasMany(Operation, { as: 'operations', foreignKey: 'taskId' });
+Operation.belongsTo(Task, { foreignKey: 'taskId' });
+Operation.belongsTo(User, { as: 'employee', foreignKey: 'employeeId' });
+Operation.belongsTo(Machine, { as: 'machine', foreignKey: 'machineId' });
 
 module.exports = {
     sequelize,
@@ -237,6 +114,5 @@ module.exports = {
     ModelPart,
     Color,
     Task,
-    Operation,
-    syncDatabase
+    Operation
 };
