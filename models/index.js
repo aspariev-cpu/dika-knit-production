@@ -3,10 +3,9 @@ const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
-// ✅ Путь к сертификату (если он есть в папке certs)
-const certPath = path.join(__dirname, 'certs', 'root.crt');
+// ✅ Сертификат лежит в корне проекта (рядом с server.js)
+const certPath = path.join(__dirname, 'root.crt');
 
-// ✅ Настройка SSL: если сертификат есть — используем его, если нет — fallback
 let sslConfig = {
     require: true,
     rejectUnauthorized: false
