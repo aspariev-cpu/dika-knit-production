@@ -56,7 +56,11 @@
                         const percent = task.planQuantity > 0 ? Math.min((totalDone / task.planQuantity) * 100, 100) : 0;
                         const isCompleted = percent >= 100;
                     %>
-                        <div class="task-card <%= task.isUrgent ? 'urgent' : '' %>" data-task-id="<%= task.id %>" data-last-printed="<%= task.lastPrintedAt || '' %>">
+                        <div class="task-card <%= task.isUrgent ? 'urgent' : '' %>" 
+                             data-task-id="<%= task.id %>" 
+                             data-last-printed="<%= task.lastPrintedAt || '' %>"
+                             data-ip="<%= task.ip || '' %>"
+                             data-urgent="<%= task.isUrgent ? 'true' : 'false' %>">
                             <div class="task-content">
                                 <div class="task-top" style="display:flex; gap:12px; align-items:flex-start;">
                                     <% if (task.Model && task.Model.image) { %>
@@ -69,7 +73,9 @@
                                         </div>
                                     <% } %>
                                     <div class="task-info" style="flex:1; min-width:0;">
-                                        <div class="task-title" style="font-size:18px; font-weight:700; margin-bottom:4px;"><%= task.isUrgent ? '🔥 ' : '' %><%= task.Model ? task.Model.name : '—' %></div>
+                                        <div class="task-title" style="font-size:18px; font-weight:700; margin-bottom:4px;">
+                                            <%= task.isUrgent ? '🔥 ' : '' %><%= task.Model ? task.Model.name : '—' %>
+                                        </div>
                                         <div class="task-meta" style="display:flex; flex-wrap:wrap; gap:8px; font-size:13px; color:#8892b0;">
                                             <span class="meta-tag">📄 <strong style="color:#fff;"><%= task.Model ? task.Model.program : '—' %></strong></span>
                                             <span class="meta-tag">📏 <strong style="color:#fff;"><%= task.Model ? task.Model.size : '—' %></strong></span>
@@ -77,6 +83,9 @@
                                         </div>
                                         <div class="task-meta" style="color:#8892b0; font-size:12px; margin-top:2px;">
                                             🧵 Пряжа: <strong style="color:#fff;"><%= task.Model ? task.Model.yarn : '—' %></strong>
+                                        </div>
+                                        <div class="task-meta" style="color:#8892b0; font-size:12px; margin-top:2px;">
+                                            🏢 ИП: <strong style="color:#fff;"><%= task.ip || '—' %></strong>
                                         </div>
                                     </div>
                                 </div>
@@ -116,7 +125,6 @@
                                             <button class="btn btn-danger" onclick="undoOperation(<%= task.id %>)" style="padding:4px 12px; font-size:12px; height:32px; background:#ff6b6b; border:none; border-radius:6px; color:#fff; cursor:pointer;">↩️ Отменить</button>
                                         <% } %>
                                         
-                                        <!-- ✅ КНОПКА "ОТПРАВИТЬ АДМИНУ" (ПОЯВЛЯЕТСЯ ТОЛЬКО ПРИ 100%) -->
                                         <% if (isCompleted && task.status !== 'completed') { %>
                                             <button id="send-btn-<%= task.id %>" class="btn btn-success" onclick="sendToAdmin(<%= task.id %>)" style="padding:4px 14px; font-size:12px; height:32px; background:#4ade80; border:none; border-radius:6px; color:#0a0e1a; cursor:pointer; font-weight:600;">
                                                 📤 Отправить админу
@@ -125,7 +133,6 @@
                                     </div>
                                 </div>
 
-                                <!-- ✅ БЕЙДЖ "ЗАКАЗ ВЫПОЛНЕН" (БЕЗ ТАЙМЕРА) -->
                                 <% if (isCompleted && task.status !== 'completed') { %>
                                     <div id="badge-<%= task.id %>" style="margin-top: 10px; padding: 6px 12px; background: rgba(81, 207, 102, 0.1); border-radius: 6px; border-left: 3px solid #51cf66; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
                                         <span style="color: #51cf66; font-size:13px;">✅ Заказ выполнен!</span>
@@ -249,7 +256,7 @@
                         sendBtn.style.display = result.percent >= 100 ? 'inline-block' : 'none';
                     }
                     
-                    // ✅ ПОКАЗЫВАЕМ ПРЕДПРОСМОТР
+                    // ✅ ПОКАЗЫВАЕМ ПРЕДПРОСМОТР (с передачей machineId)
                     const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
                     showPreview({
                         modelName: modelName,
@@ -260,7 +267,8 @@
                         className: taskCard.closest('.class-block')?.querySelector('.class-header span')?.textContent?.replace('🔧 Класс', '').trim() || '—',
                         yarn: taskCard.querySelector('.task-meta strong')?.textContent?.trim() || '—',
                         taskId: data.taskId,
-                        operationId: result.operationId
+                        operationId: result.operationId,
+                        machineId: result.machineId // ✅ ПЕРЕДАЁМ НОМЕР СТАНКА
                     });
                     
                     btn.textContent = originalText;
@@ -314,7 +322,7 @@
         }
 
         // ========================================
-        //  ПЕЧАТЬ ЭТИКЕТКИ (НЕ ТРОГАЕМ, РАБОЧАЯ)
+        //  ПЕЧАТЬ ЭТИКЕТКИ (С ИП, СРОЧНО, СТАНКОМ)
         // ========================================
         function printLabel(taskId, operationId, data) {
             const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
@@ -331,6 +339,11 @@
             const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
             const date = new Date().toLocaleDateString('ru-RU');
             const quantity = data?.quantity || taskCard.querySelector('.task-progress-block strong:first-child')?.textContent || '0';
+            
+            // ✅ НОВЫЕ ДАННЫЕ: ИП, срочность, станок
+            const ip = taskCard.dataset.ip || '—';
+            const isUrgent = taskCard.dataset.urgent === 'true';
+            const machineNumber = data?.machineId || taskCard.dataset.machine || '—';
             
             const worker = fullName;
 
@@ -382,6 +395,14 @@
                             font-weight: 700;
                             color: #000;
                             line-height: 1.1;
+                            margin-bottom: 0.5px;
+                        }
+                        
+                        .label .urgent {
+                            font-size: 12px;
+                            font-weight: 900;
+                            color: #f87171;
+                            letter-spacing: 0.5px;
                             margin-bottom: 0.5px;
                         }
                         
@@ -437,6 +458,7 @@
                 <body>
                     <div class="label">
                         <div class="model">${modelName}</div>
+                        ${isUrgent ? '<div class="urgent">СРОЧНО</div>' : ''}
                         <div class="quantity">${quantity} шт.</div>
                         <div class="info">
                             <span class="color-dot" style="background:${color};"></span>
@@ -444,6 +466,9 @@
                         </div>
                         <div class="info">
                             Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
+                        </div>
+                        <div class="info">
+                            ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
                         </div>
                         <div class="info">
                             Вязал: <span>${worker}</span> &nbsp;|&nbsp; <span>${date}</span>
