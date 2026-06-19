@@ -70,7 +70,8 @@ const Task = sequelize.define('Task', {
     planQuantity: { type: DataTypes.INTEGER, allowNull: false },
     isUrgent: { type: DataTypes.BOOLEAN, defaultValue: false },
     status: { type: DataTypes.ENUM('pending', 'in_progress', 'completed'), defaultValue: 'pending' },
-    lastPrintedAt: { type: DataTypes.DATE, defaultValue: null }
+    lastPrintedAt: { type: DataTypes.DATE, defaultValue: null },
+    ip: { type: DataTypes.STRING, allowNull: true, defaultValue: null } // ✅ НОВОЕ ПОЛЕ
 });
 
 // ========================================
