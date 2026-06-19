@@ -190,6 +190,7 @@ body {
     margin-top: 20px;
 }
 
+/* ✅ КАРТОЧКА ЗАДАНИЯ (ОБЫЧНАЯ) */
 .task-card {
     background: rgba(255,255,255,0.04);
     border-radius: 16px;
@@ -202,7 +203,50 @@ body {
     border-color: rgba(201,169,89,0.15);
     box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
 }
-.task-card.urgent { border-color: #f87171; background: rgba(248,113,113,0.05); }
+
+/* ✅ СРОЧНЫЙ ЗАКАЗ — ЯРКИЙ, ЗОЛОТАЯ РАМКА */
+.task-card.urgent {
+    border: 2px solid #c9a959;
+    background: linear-gradient(135deg, rgba(201,169,89,0.15), rgba(201,169,89,0.05));
+    box-shadow: 0 0 30px rgba(201,169,89,0.1);
+    position: relative;
+}
+
+.task-card.urgent::before {
+    content: "СРОЧНО";
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #f87171;
+    color: #fff;
+    font-weight: 800;
+    font-size: 10px;
+    padding: 2px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}
+
+.task-card.urgent .task-title {
+    color: #c9a959 !important;
+}
+
+/* ✅ СТИЛИ ДЛЯ SELECT СТАНКОВ (ВИДИМЫЕ) */
+select.form-select option {
+    background: #1a1f36;
+    color: #ffffff;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+select.form-select option:hover {
+    background: #c9a959;
+    color: #0a0e1a;
+}
+
+select.form-select:focus {
+    outline: none;
+    border-color: #c9a959;
+}
 
 .task-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
 .task-meta { color: #8892b0; font-size: 14px; margin: 4px 0; }
@@ -230,6 +274,16 @@ body {
     color: #fff;
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+.btn-danger {
+    background: #ff6b6b;
+    color: #fff;
+}
+.btn-danger:hover { background: #ff5252; transform: scale(1.02); }
+.btn-success {
+    background: #4ade80;
+    color: #0a0e1a;
+}
+.btn-success:hover { background: #22c55e; transform: scale(1.02); }
 
 .empty-state {
     text-align: center;
@@ -250,49 +304,7 @@ body {
     .tasks-table table { font-size: 13px; min-width: 600px; }
     .tasks-grid { grid-template-columns: 1fr; }
 }
-/* Модальное окно */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(5px);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-.modal.active { display: flex; }
-.modal-content {
-    background: #1a1f36;
-    padding: 30px;
-    border-radius: 16px;
-    max-width: 500px;
-    width: 90%;
-    border: 1px solid rgba(201,169,89,0.1);
-}
-.modal-content h2 { color: #c9a959; margin-bottom: 20px; }
-.modal-content .form-group { margin-bottom: 15px; }
-.modal-content .form-group label { 
-    font-size: 12px; 
-    color: #8892b0; 
-    text-transform: uppercase; 
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-    display: block;
-}
-.modal-content input, .modal-content select {
-    width: 100%;
-    padding: 12px 16px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(201,169,89,0.15);
-    border-radius: 10px;
-    color: #fff;
-    font-size: 14px;
-}
-.modal-content input:focus, .modal-content select:focus {
-    outline: none;
-    border-color: #c9a959;
-}
+
 /* Модальное окно */
 .modal {
     display: none;
