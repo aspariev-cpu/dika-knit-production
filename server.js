@@ -320,7 +320,8 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
             colorId: original.colorId,
             planQuantity: original.planQuantity,
             isUrgent: original.isUrgent,
-            status: 'pending'
+            status: 'pending',
+            ip: original.ip // ✅ КОПИРУЕМ ИП
         });
         res.redirect('/admin');
     } catch (err) {
@@ -424,6 +425,10 @@ app.get('/worker', async (req, res) => {
                 { model: Model, include: [{ model: ModelPart, as: 'parts' }] },
                 { model: Color },
                 { model: Operation, as: 'operations' }
+            ],
+            order: [
+                ['isUrgent', 'DESC'], // Срочные первыми
+                ['createdAt', 'ASC']
             ]
         });
         res.render('worker/dashboard', {
@@ -454,7 +459,7 @@ app.get('/api/colors', async (req, res) => {
 // ========================================
 
 app.post('/api/tasks', async (req, res) => {
-    const { modelId, colorId, planQuantity, isUrgent } = req.body;
+    const { modelId, colorId, planQuantity, isUrgent, ip } = req.body;
     try {
         const model = await Model.findByPk(modelId);
         if (!model) {
@@ -466,7 +471,8 @@ app.post('/api/tasks', async (req, res) => {
             colorId,
             planQuantity: parseInt(planQuantity),
             isUrgent: isUrgent === 'on',
-            status: 'pending'
+            status: 'pending',
+            ip: ip || null // ✅ СОХРАНЯЕМ ИП
         });
 
         io.emit('newTask', task);
@@ -506,7 +512,8 @@ app.post('/api/operations', async (req, res) => {
             quantity: quantity,
             totalDone: totalDone,
             percent: percent,
-            planQuantity: task.planQuantity
+            planQuantity: task.planQuantity,
+            machineId: machineId // ✅ ВОЗВРАЩАЕМ НОМЕР СТАНКА
         });
     } catch (err) {
         console.error(err);
@@ -577,7 +584,6 @@ httpServer.listen(PORT, async () => {
     await sequelize.authenticate();
     console.log('✅ База данных подключена');
     
-    // ✅ ПРИНУДИТЕЛЬНОЕ ПЕРЕСОЗДАНИЕ ТАБЛИЦ (ВСЕ ДАННЫЕ УДАЛЯТСЯ!)
     await sequelize.sync({ force: true });
     console.log('✅ Таблицы пересозданы');
 
