@@ -1,36 +1,12 @@
 require('dotenv').config();
 const { Sequelize, DataTypes } = require('sequelize');
-const fs = require('fs');
-const path = require('path');
 
-// ✅ Сертификат лежит в корне проекта (рядом с server.js)
-const certPath = path.join(__dirname, 'root.crt');
-
-let sslConfig = {
-    require: true,
-    rejectUnauthorized: false
-};
-
-try {
-    if (fs.existsSync(certPath)) {
-        sslConfig = {
-            require: true,
-            rejectUnauthorized: true,
-            ca: fs.readFileSync(certPath).toString()
-        };
-        console.log('✅ SSL-сертификат загружен');
-    } else {
-        console.log('⚠️ Сертификат не найден, используется режим без проверки');
-    }
-} catch (err) {
-    console.warn('⚠️ Ошибка при загрузке сертификата:', err.message);
-}
-
+// ✅ ПРОСТОЕ ПОДКЛЮЧЕНИЕ — SSL ОТКЛЮЧЁН
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
     dialectOptions: {
-        ssl: sslConfig
+        ssl: false
     }
 });
 
