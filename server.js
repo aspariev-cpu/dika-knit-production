@@ -332,7 +332,7 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
 });
 
 // ========================================
-//  СТАТИСТИКА ПО СМЕНАМ (С ИСПРАВЛЕННЫМ ВРЕМЕНЕМ)
+//  СТАТИСТИКА ПО СМЕНАМ
 // ========================================
 
 app.get('/admin/shifts', async (req, res) => {
@@ -380,7 +380,7 @@ app.get('/admin/shifts', async (req, res) => {
                 { model: Machine, as: 'machine' }
             ],
             order: [['createdAt', 'DESC']],
-            timezone: '+03:00' // ✅ ИСПРАВЛЕННЫЙ ЧАСОВОЙ ПОЯС
+            timezone: '+03:00'
         });
         
         const summary = {};
@@ -464,11 +464,11 @@ app.get('/admin/shifts/export', async (req, res) => {
                 { model: Machine, as: 'machine' }
             ],
             order: [['createdAt', 'DESC']],
-            timezone: '+03:00' // ✅ ИСПРАВЛЕННЫЙ ЧАСОВОЙ ПОЯС
+            timezone: '+03:00'
         });
         
         const data = operations.map(op => ({
-            'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU'),
+            'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
             'Сотрудник': op.employee?.fullName || '—',
             'Программа': op.Task?.Model?.program || '—',
             'Количество': op.quantity,
