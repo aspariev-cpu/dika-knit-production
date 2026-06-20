@@ -6,6 +6,29 @@
     <title>Dika Knit - Админ</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* Стили для поиска в выпадающем списке */
+        select option {
+            padding: 8px 12px;
+        }
+        select option:hover {
+            background: rgba(201,169,89,0.2) !important;
+        }
+        .searchable-select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(201,169,89,0.1);
+            border-radius: 10px;
+            color: #fff;
+        }
+        .searchable-select:focus {
+            outline: none;
+            border-color: #c9a959;
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 0 4px rgba(201,169,89,0.1);
+        }
+    </style>
 </head>
 <body>
     <div class="header">
@@ -34,8 +57,10 @@
             <form action="/api/tasks" method="post" class="form-grid">
                 <div class="form-group">
                     <label>Модель</label>
-                    <select name="modelId" id="modelSelect" required>
-                        <option value="">Выберите модель...</option>
+                    <!-- ✅ ИЗМЕНЕНО: добавлен поиск -->
+                    <select name="modelId" id="modelSearch" class="searchable-select" required>
+                        <option value="">🔍 Введите модель...</option>
+                        <!-- Сюда будут загружены модели через JS -->
                     </select>
                 </div>
                 
@@ -51,15 +76,16 @@
 
                 <div class="form-group">
                     <label>Цвет</label>
-                    <select name="colorId" id="colorSelect" required>
-                        <option value="">Выберите цвет...</option>
+                    <!-- ✅ ИЗМЕНЕНО: добавлен поиск -->
+                    <select name="colorId" id="colorSearch" class="searchable-select" required>
+                        <option value="">🔍 Введите цвет...</option>
+                        <!-- Сюда будут загружены цвета через JS -->
                     </select>
                 </div>
                 
-                <!-- ✅ НОВЫЙ БЛОК: ВЫБОР ИП -->
                 <div class="form-group">
                     <label>ИП</label>
-                    <select name="ip" required>
+                    <select name="ip" required class="searchable-select">
                         <option value="">Выберите ИП...</option>
                         <option value="ИП Алла">ИП Алла</option>
                         <option value="ИП Заур">ИП Заур</option>
@@ -144,6 +170,9 @@
     </div>
 
     <script>
+        // ========================================
+        //  ЗАГРУЗКА МОДЕЛЕЙ И ЦВЕТОВ
+        // ========================================
         async function loadData() {
             try {
                 const [models, colors] = await Promise.all([
@@ -151,15 +180,15 @@
                     fetch('/api/colors').then(r => r.json())
                 ]);
 
-                const modelSelect = document.getElementById('modelSelect');
+                const modelSelect = document.getElementById('modelSearch');
                 models.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m.id;
-                    opt.textContent = m.name;
+                    opt.textContent = m.name + ' (' + m.program + ')';
                     modelSelect.appendChild(opt);
                 });
 
-                const colorSelect = document.getElementById('colorSelect');
+                const colorSelect = document.getElementById('colorSearch');
                 colors.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c.id;
@@ -167,6 +196,7 @@
                     colorSelect.appendChild(opt);
                 });
 
+                // ---------- ОТОБРАЖЕНИЕ ИНФОРМАЦИИ О МОДЕЛИ ----------
                 modelSelect.addEventListener('change', function() {
                     const modelId = this.value;
                     const infoDiv = document.getElementById('modelInfo');
@@ -184,12 +214,45 @@
                         infoDiv.style.display = 'none';
                     }
                 });
+
+                // ---------- ПОИСК В МОДЕЛЯХ (ФИЛЬТРАЦИЯ) ----------
+                modelSelect.addEventListener('input', function(e) {
+                    const filter = e.target.value.toLowerCase();
+                    const options = this.querySelectorAll('option');
+                    options.forEach(opt => {
+                        // Пропускаем первый элемент (подсказку)
+                        if (opt === this.querySelector('option:first-child')) {
+                            opt.style.display = 'block';
+                            return;
+                        }
+                        const text = opt.textContent.toLowerCase();
+                        opt.style.display = text.includes(filter) ? 'block' : 'none';
+                    });
+                });
+
+                // ---------- ПОИСК В ЦВЕТАХ (ФИЛЬТРАЦИЯ) ----------
+                colorSelect.addEventListener('input', function(e) {
+                    const filter = e.target.value.toLowerCase();
+                    const options = this.querySelectorAll('option');
+                    options.forEach(opt => {
+                        if (opt === this.querySelector('option:first-child')) {
+                            opt.style.display = 'block';
+                            return;
+                        }
+                        const text = opt.textContent.toLowerCase();
+                        opt.style.display = text.includes(filter) ? 'block' : 'none';
+                    });
+                });
+
             } catch (err) {
                 console.error('Ошибка загрузки:', err);
             }
         }
         loadData();
 
+        // ========================================
+        //  РЕДАКТИРОВАНИЕ ЗАДАНИЯ
+        // ========================================
         function editTask(taskId) {
             const modal = document.getElementById('editModal');
             document.getElementById('editTaskId').value = taskId;
