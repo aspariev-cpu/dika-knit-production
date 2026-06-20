@@ -832,7 +832,7 @@ httpServer.listen(PORT, async () => {
     await sequelize.authenticate();
     console.log('✅ База данных подключена');
     
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ alter: true });
     console.log('✅ Таблицы пересозданы');
 
     const adminExists = await User.findOne({ where: { login: 'admin' } });
