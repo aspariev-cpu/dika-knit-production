@@ -662,6 +662,53 @@ app.get('/admin/shifts/export', async (req, res) => {
 });
 
 // ========================================
+//  УДАЛЕНИЕ СМЕНЫ
+// ========================================
+
+app.post('/admin/shifts/delete', async (req, res) => {
+    try {
+        const { date, shift } = req.body;
+        let whereClause = {};
+        
+        if (date) {
+            const selectedDate = new Date(date);
+            let startDate, endDate;
+            
+            if (shift === 'day') {
+                startDate = new Date(selectedDate);
+                startDate.setHours(8, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setHours(20, 0, 0, 0);
+            } else if (shift === 'night') {
+                startDate = new Date(selectedDate);
+                startDate.setHours(20, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setDate(endDate.getDate() + 1);
+                endDate.setHours(8, 0, 0, 0);
+            } else {
+                startDate = new Date(selectedDate);
+                startDate.setHours(0, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setHours(23, 59, 59, 999);
+            }
+            whereClause.createdAt = {
+                [Op.gte]: startDate,
+                [Op.lt]: endDate
+            };
+        }
+        
+        const deleted = await Operation.destroy({ where: whereClause });
+        
+        console.log(`🗑️ Удалено ${deleted} операций за ${date} (${shift})`);
+        res.redirect('/admin/shifts');
+        
+    } catch (err) {
+        console.error('Ошибка удаления смены:', err);
+        res.status(500).send('Ошибка при удалении смены: ' + err.message);
+    }
+});
+
+// ========================================
 //  КАБИНЕТ ВЯЗАЛЬЩИКА
 // ========================================
 
@@ -833,7 +880,7 @@ httpServer.listen(PORT, async () => {
     console.log('✅ База данных подключена');
     
     await sequelize.sync({ alter: true });
-    console.log('✅ Таблицы пересозданы');
+    console.log('✅ Таблицы синхронизированы (данные сохранены)');
 
     const adminExists = await User.findOne({ where: { login: 'admin' } });
     if (!adminExists) {
