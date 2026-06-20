@@ -28,6 +28,11 @@
                     <option value="night" <%= shift === 'night' ? 'selected' : '' %>>Ночная (20:00-8:00)</option>
                 </select>
                 <button type="submit" class="btn-submit" style="padding:10px 24px;">Показать</button>
+                
+                <!-- ✅ НОВАЯ КНОПКА ВЫГРУЗКИ -->
+                <a href="/admin/shifts/export?date=<%= date %>&shift=<%= shift %>" class="btn-submit" style="padding:10px 24px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:10px; display:inline-block;">
+                    📥 Выгрузить Excel
+                </a>
             </form>
         </div>
 
