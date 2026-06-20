@@ -22,25 +22,28 @@
 
         <div class="create-task" style="padding:20px; margin-bottom:30px;">
             <form action="/admin/shifts" method="get" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
-                <input type="date" name="date" value="<%= date %>" style="padding:10px 16px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff;">
+                <input type="date" name="date" value="<%= date || '' %>" style="padding:10px 16px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff;">
                 <select name="shift" style="padding:10px 16px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff;">
                     <option value="day" <%= shift === 'day' ? 'selected' : '' %>>Дневная (8:00-20:00)</option>
                     <option value="night" <%= shift === 'night' ? 'selected' : '' %>>Ночная (20:00-8:00)</option>
                 </select>
                 <button type="submit" class="btn-submit" style="padding:10px 24px;">Показать</button>
                 
-                <a href="/admin/shifts/export?date=<%= date %>&shift=<%= shift %>" class="btn-submit" style="padding:10px 24px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:10px; display:inline-block;">
+                <a href="/admin/shifts/export?date=<%= date || '' %>&shift=<%= shift %>" class="btn-submit" style="padding:10px 24px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:10px; display:inline-block;">
                     📥 Excel
                 </a>
                 
-                <!-- ✅ НОВАЯ КНОПКА УДАЛЕНИЯ СМЕНЫ -->
-                <form action="/admin/shifts/delete" method="post" style="display:inline;" onsubmit="return confirm('⚠️ Удалить все операции за эту смену? Данные будут потеряны!');">
-                    <input type="hidden" name="date" value="<%= date %>">
-                    <input type="hidden" name="shift" value="<%= shift %>">
-                    <button type="submit" class="btn-submit" style="padding:10px 24px; background:#f87171; color:#fff; border:none; border-radius:10px; cursor:pointer;">
-                        🗑️ Удалить смену
-                    </button>
-                </form>
+                <% if (date) { %>
+                    <form action="/admin/shifts/delete" method="post" style="display:inline;" onsubmit="return confirm('⚠️ Удалить все операции за эту смену? Данные будут потеряны!');">
+                        <input type="hidden" name="date" value="<%= date %>">
+                        <input type="hidden" name="shift" value="<%= shift %>">
+                        <button type="submit" class="btn-submit" style="padding:10px 24px; background:#f87171; color:#fff; border:none; border-radius:10px; cursor:pointer;">
+                            🗑️ Удалить смену
+                        </button>
+                    </form>
+                <% } else { %>
+                    <span style="color:#475569; padding:10px 0; font-size:14px;">Выберите дату для удаления</span>
+                <% } %>
             </form>
         </div>
 
