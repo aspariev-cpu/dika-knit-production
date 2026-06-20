@@ -332,7 +332,7 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
 });
 
 // ========================================
-//  СТАТИСТИКА ПО СМЕНАМ
+//  СТАТИСТИКА ПО СМЕНАМ (С ИСПРАВЛЕННЫМ ВРЕМЕНЕМ)
 // ========================================
 
 app.get('/admin/shifts', async (req, res) => {
@@ -379,7 +379,8 @@ app.get('/admin/shifts', async (req, res) => {
                 },
                 { model: Machine, as: 'machine' }
             ],
-            order: [['createdAt', 'DESC']]
+            order: [['createdAt', 'DESC']],
+            timezone: '+03:00' // ✅ ИСПРАВЛЕННЫЙ ЧАСОВОЙ ПОЯС
         });
         
         const summary = {};
@@ -462,7 +463,8 @@ app.get('/admin/shifts/export', async (req, res) => {
                 },
                 { model: Machine, as: 'machine' }
             ],
-            order: [['createdAt', 'DESC']]
+            order: [['createdAt', 'DESC']],
+            timezone: '+03:00' // ✅ ИСПРАВЛЕННЫЙ ЧАСОВОЙ ПОЯС
         });
         
         const data = operations.map(op => ({
