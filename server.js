@@ -8,6 +8,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
+const XLSX = require('xlsx');
 const {
     sequelize,
     User,
@@ -321,7 +322,7 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
             planQuantity: original.planQuantity,
             isUrgent: original.isUrgent,
             status: 'pending',
-            ip: original.ip // ✅ КОПИРУЕМ ИП
+            ip: original.ip
         });
         res.redirect('/admin');
     } catch (err) {
@@ -414,6 +415,106 @@ app.get('/admin/shifts', async (req, res) => {
 });
 
 // ========================================
+//  ВЫГРУЗКА СМЕНЫ В EXCEL
+// ========================================
+
+app.get('/admin/shifts/export', async (req, res) => {
+    try {
+        const { date, shift } = req.query;
+        let whereClause = {};
+        
+        if (date) {
+            const selectedDate = new Date(date);
+            let startDate, endDate;
+            
+            if (shift === 'day') {
+                startDate = new Date(selectedDate);
+                startDate.setHours(8, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setHours(20, 0, 0, 0);
+            } else if (shift === 'night') {
+                startDate = new Date(selectedDate);
+                startDate.setHours(20, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setDate(endDate.getDate() + 1);
+                endDate.setHours(8, 0, 0, 0);
+            } else {
+                startDate = new Date(selectedDate);
+                startDate.setHours(0, 0, 0, 0);
+                endDate = new Date(selectedDate);
+                endDate.setHours(23, 59, 59, 999);
+            }
+            whereClause.createdAt = {
+                [Op.gte]: startDate,
+                [Op.lt]: endDate
+            };
+        }
+        
+        const operations = await Operation.findAll({
+            where: whereClause,
+            include: [
+                { model: User, as: 'employee' },
+                { 
+                    model: Task,
+                    include: [
+                        { model: Model }
+                    ]
+                },
+                { model: Machine, as: 'machine' }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        const data = operations.map(op => ({
+            'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU'),
+            'Сотрудник': op.employee?.fullName || '—',
+            'Программа': op.Task?.Model?.program || '—',
+            'Количество': op.quantity,
+            'Станок': op.machine?.machineNumber || '—',
+            'ИП': op.Task?.ip || '—',
+            'Модель': op.Task?.Model?.name || '—',
+            'Цвет': op.Task?.Color?.name || '—',
+            'Размер': op.Task?.Model?.size || '—',
+            'Класс': op.Task?.Model?.className || '—'
+        }));
+        
+        if (data.length === 0) {
+            return res.send('За эту смену нет данных');
+        }
+        
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'Смена');
+        
+        ws['!cols'] = [
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 15 },
+            { wch: 20 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 12 }
+        ];
+        
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        const shiftName = shift === 'day' ? 'дневная' : 'ночная';
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=smena-${dateStr}-${shiftName}.xlsx`);
+        res.send(buffer);
+        
+    } catch (err) {
+        console.error('Ошибка выгрузки Excel:', err);
+        res.status(500).send('Ошибка при выгрузке');
+    }
+});
+
+// ========================================
 //  КАБИНЕТ ВЯЗАЛЬЩИКА
 // ========================================
 
@@ -427,7 +528,7 @@ app.get('/worker', async (req, res) => {
                 { model: Operation, as: 'operations' }
             ],
             order: [
-                ['isUrgent', 'DESC'], // Срочные первыми
+                ['isUrgent', 'DESC'],
                 ['createdAt', 'ASC']
             ]
         });
@@ -472,7 +573,7 @@ app.post('/api/tasks', async (req, res) => {
             planQuantity: parseInt(planQuantity),
             isUrgent: isUrgent === 'on',
             status: 'pending',
-            ip: ip || null // ✅ СОХРАНЯЕМ ИП
+            ip: ip || null
         });
 
         io.emit('newTask', task);
@@ -513,7 +614,7 @@ app.post('/api/operations', async (req, res) => {
             totalDone: totalDone,
             percent: percent,
             planQuantity: task.planQuantity,
-            machineId: machineId // ✅ ВОЗВРАЩАЕМ НОМЕР СТАНКА
+            machineId: machineId
         });
     } catch (err) {
         console.error(err);
