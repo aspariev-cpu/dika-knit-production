@@ -664,42 +664,54 @@ app.get('/admin/shifts/export', async (req, res) => {
 // ========================================
 //  УДАЛЕНИЕ СМЕНЫ
 // ========================================
-
 app.post('/admin/shifts/delete', async (req, res) => {
     try {
         const { date, shift } = req.body;
-        let whereClause = {};
+
+        // ✅ ЗАЩИТА ОТ ПУСТЫХ ЗНАЧЕНИЙ
+        if (!date) {
+            return res.status(400).send('❌ Ошибка: дата не указана');
+        }
+
+        const selectedDate = new Date(date);
         
-        if (date) {
-            const selectedDate = new Date(date);
-            let startDate, endDate;
-            
-            if (shift === 'day') {
-                startDate = new Date(selectedDate);
-                startDate.setHours(8, 0, 0, 0);
-                endDate = new Date(selectedDate);
-                endDate.setHours(20, 0, 0, 0);
-            } else if (shift === 'night') {
-                startDate = new Date(selectedDate);
-                startDate.setHours(20, 0, 0, 0);
-                endDate = new Date(selectedDate);
-                endDate.setDate(endDate.getDate() + 1);
-                endDate.setHours(8, 0, 0, 0);
-            } else {
-                startDate = new Date(selectedDate);
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(selectedDate);
-                endDate.setHours(23, 59, 59, 999);
-            }
-            whereClause.createdAt = {
+        // ✅ ПРОВЕРКА, ЧТО ДАТА ВАЛИДНА
+        if (isNaN(selectedDate.getTime())) {
+            return res.status(400).send('❌ Ошибка: неверный формат даты');
+        }
+
+        let startDate, endDate;
+        
+        if (shift === 'day') {
+            startDate = new Date(selectedDate);
+            startDate.setHours(8, 0, 0, 0);
+            endDate = new Date(selectedDate);
+            endDate.setHours(20, 0, 0, 0);
+        } else if (shift === 'night') {
+            startDate = new Date(selectedDate);
+            startDate.setHours(20, 0, 0, 0);
+            endDate = new Date(selectedDate);
+            endDate.setDate(endDate.getDate() + 1);
+            endDate.setHours(8, 0, 0, 0);
+        } else {
+            // Если смена не указана — удаляем за весь день
+            startDate = new Date(selectedDate);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(selectedDate);
+            endDate.setHours(23, 59, 59, 999);
+        }
+
+        const whereClause = {
+            createdAt: {
                 [Op.gte]: startDate,
                 [Op.lt]: endDate
-            };
-        }
+            }
+        };
         
+        // Удаляем все операции за этот период
         const deleted = await Operation.destroy({ where: whereClause });
         
-        console.log(`🗑️ Удалено ${deleted} операций за ${date} (${shift})`);
+        console.log(`🗑️ Удалено ${deleted} операций за ${date} (${shift || 'весь день'})`);
         res.redirect('/admin/shifts');
         
     } catch (err) {
