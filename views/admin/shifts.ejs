@@ -29,7 +29,6 @@
                 </select>
                 <button type="submit" class="btn-submit" style="padding:10px 24px;">Показать</button>
                 
-                <!-- ✅ НОВАЯ КНОПКА ВЫГРУЗКИ -->
                 <a href="/admin/shifts/export?date=<%= date %>&shift=<%= shift %>" class="btn-submit" style="padding:10px 24px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:10px; display:inline-block;">
                     📥 Выгрузить Excel
                 </a>
@@ -78,7 +77,7 @@
                         <tbody>
                             <% operations.forEach(op => { %>
                                 <tr>
-                                    <td><%= new Date(op.createdAt).toLocaleString('ru-RU') %></td>
+                                    <td><%= new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) %></td>
                                     <td><%= op.employee ? op.employee.fullName : '—' %></td>
                                     <td><%= op.Task && op.Task.Model ? op.Task.Model.program : '—' %></td>
                                     <td><%= op.quantity %></td>
