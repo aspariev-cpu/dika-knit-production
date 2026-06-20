@@ -256,7 +256,7 @@
                         sendBtn.style.display = result.percent >= 100 ? 'inline-block' : 'none';
                     }
                     
-                    // ✅ ПОКАЗЫВАЕМ ПРЕДПРОСМОТР (с передачей machineId)
+                    // ✅ ПОКАЗЫВАЕМ ПРЕДПРОСМОТР
                     const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
                     showPreview({
                         modelName: modelName,
@@ -268,7 +268,7 @@
                         yarn: taskCard.querySelector('.task-meta strong')?.textContent?.trim() || '—',
                         taskId: data.taskId,
                         operationId: result.operationId,
-                        machineId: result.machineId // ✅ ПЕРЕДАЁМ НОМЕР СТАНКА
+                        machineId: result.machineId
                     });
                     
                     btn.textContent = originalText;
@@ -322,7 +322,7 @@
         }
 
         // ========================================
-        //  ПЕЧАТЬ ЭТИКЕТКИ (С ИП, СРОЧНО СПРАВА ОТ НАЗВАНИЯ, СТАНКОМ)
+        //  ПЕЧАТЬ ЭТИКЕТКИ (С ИСПРАВЛЕННОЙ ДАТОЙ)
         // ========================================
         function printLabel(taskId, operationId, data) {
             const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
@@ -337,7 +337,7 @@
             const size = taskCard.querySelector('.meta-tag:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
             const className = taskCard.closest('.class-block')?.querySelector('.class-header span')?.textContent?.replace('🔧 Класс', '').trim() || '—';
             const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
-            const date = new Date().toLocaleDateString('ru-RU');
+            const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
             const quantity = data?.quantity || taskCard.querySelector('.task-progress-block strong:first-child')?.textContent || '0';
             
             const ip = taskCard.dataset.ip || '—';
@@ -389,7 +389,6 @@
                             background: white;
                         }
 
-                        /* ✅ НАЗВАНИЕ И СРОЧНО В ОДНОЙ СТРОКЕ */
                         .label .title-row {
                             display: flex;
                             justify-content: space-between;
@@ -562,6 +561,7 @@
                 backdrop-filter: blur(10px);
                 border: 1px solid rgba(255,255,255,0.05);
                 z-index: 9999;
+                max-width: 350px;
             `;
             notification.textContent = message;
             document.body.appendChild(notification);
@@ -570,22 +570,6 @@
                 setTimeout(() => notification.remove(), 400);
             }, 4000);
         }
-
-        // Стили для анимаций
-        const styleEl = document.createElement('style');
-        styleEl.textContent = `
-            @keyframes slideInRight {
-                from { opacity: 0; transform: translateX(60px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes slideOutRight {
-                from { opacity: 1; transform: translateX(0); }
-                to { opacity: 0; transform: translateX(60px); }
-            }
-        `;
-        document.head.appendChild(styleEl);
-
-        console.log('🧵 Dika Knit - Вязальщик загружен!');
     </script>
 </body>
 </html>
