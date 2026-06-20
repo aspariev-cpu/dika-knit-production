@@ -30,8 +30,17 @@
                 <button type="submit" class="btn-submit" style="padding:10px 24px;">Показать</button>
                 
                 <a href="/admin/shifts/export?date=<%= date %>&shift=<%= shift %>" class="btn-submit" style="padding:10px 24px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:10px; display:inline-block;">
-                    📥 Выгрузить Excel
+                    📥 Excel
                 </a>
+                
+                <!-- ✅ НОВАЯ КНОПКА УДАЛЕНИЯ СМЕНЫ -->
+                <form action="/admin/shifts/delete" method="post" style="display:inline;" onsubmit="return confirm('⚠️ Удалить все операции за эту смену? Данные будут потеряны!');">
+                    <input type="hidden" name="date" value="<%= date %>">
+                    <input type="hidden" name="shift" value="<%= shift %>">
+                    <button type="submit" class="btn-submit" style="padding:10px 24px; background:#f87171; color:#fff; border:none; border-radius:10px; cursor:pointer;">
+                        🗑️ Удалить смену
+                    </button>
+                </form>
             </form>
         </div>
 
