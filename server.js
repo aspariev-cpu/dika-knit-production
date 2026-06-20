@@ -183,6 +183,151 @@ app.post('/api/models/delete/:id', async (req, res) => {
     }
 });
 
+// ✅ НОВЫЙ МАРШРУТ: ПОЛУЧИТЬ МОДЕЛЬ ДЛЯ РЕДАКТИРОВАНИЯ
+app.get('/api/models/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const model = await Model.findByPk(id, {
+            include: [{ model: ModelPart, as: 'parts' }]
+        });
+        if (!model) {
+            return res.status(404).json({ error: 'Модель не найдена' });
+        }
+        res.json(model);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка при загрузке модели' });
+    }
+});
+
+// ✅ НОВЫЙ МАРШРУТ: ОБНОВИТЬ МОДЕЛЬ
+app.post('/api/models/edit/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const model = await Model.findByPk(id);
+        if (!model) {
+            return res.status(404).json({ error: 'Модель не найдена' });
+        }
+
+        const { name, program, size, className, yarn, image, isCoat } = req.body;
+        
+        await model.update({
+            name,
+            program,
+            size,
+            className,
+            yarn,
+            image: image || null,
+            isCoat: isCoat === 'on'
+        });
+
+        // Удаляем старые детали
+        await ModelPart.destroy({ where: { modelId: id } });
+
+        // Создаём новые, если это кофта
+        if (isCoat === 'on') {
+            for (let i = 0; i < 5; i++) {
+                const partName = req.body[`part_name_${i}`];
+                const partProgram = req.body[`part_program_${i}`];
+                const partSize = req.body[`part_size_${i}`];
+                const partClass = req.body[`part_class_${i}`];
+                const partYarn = req.body[`part_yarn_${i}`];
+                const partImage = req.body[`part_image_${i}`];
+                
+                if (partName && partProgram && partSize && partClass && partYarn) {
+                    await ModelPart.create({
+                        modelId: id,
+                        partName: partName,
+                        program: partProgram,
+                        size: partSize,
+                        className: partClass,
+                        yarn: partYarn,
+                        image: partImage || null
+                    });
+                }
+            }
+        }
+
+        res.redirect('/admin/models');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка при редактировании модели: ' + err.message);
+    }
+});
+
+// ✅ НОВЫЙ МАРШРУТ: ЭКСПОРТ МОДЕЛЕЙ В EXCEL
+app.get('/admin/models/export', async (req, res) => {
+    try {
+        const models = await Model.findAll({
+            include: [{ model: ModelPart, as: 'parts' }],
+            order: [['name', 'ASC']]
+        });
+
+        if (models.length === 0) {
+            return res.send('Нет моделей для экспорта');
+        }
+
+        const data = [];
+        models.forEach(model => {
+            if (model.isCoat && model.parts && model.parts.length > 0) {
+                model.parts.forEach(part => {
+                    data.push({
+                        'Название': model.name,
+                        'Программа': model.program,
+                        'Размер': model.size,
+                        'Класс': model.className,
+                        'Пряжа': model.yarn,
+                        'Фото': model.image || '—',
+                        'Тип': 'Кофта',
+                        'Деталь': part.partName,
+                        'Программа детали': part.program,
+                        'Размер детали': part.size,
+                        'Класс детали': part.className,
+                        'Пряжа детали': part.yarn,
+                        'Фото детали': part.image || '—'
+                    });
+                });
+            } else {
+                data.push({
+                    'Название': model.name,
+                    'Программа': model.program,
+                    'Размер': model.size,
+                    'Класс': model.className,
+                    'Пряжа': model.yarn,
+                    'Фото': model.image || '—',
+                    'Тип': 'Обычная',
+                    'Деталь': '—',
+                    'Программа детали': '—',
+                    'Размер детали': '—',
+                    'Класс детали': '—',
+                    'Пряжа детали': '—',
+                    'Фото детали': '—'
+                });
+            }
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'Модели');
+
+        ws['!cols'] = [
+            { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+            { wch: 30 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 12 },
+            { wch: 12 }, { wch: 20 }, { wch: 30 }
+        ];
+
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=models-${new Date().toISOString().split('T')[0]}.xlsx`);
+        res.send(buffer);
+
+    } catch (err) {
+        console.error('Ошибка экспорта моделей:', err);
+        res.status(500).send('Ошибка при выгрузке');
+    }
+});
+
 // ========================================
 //  УПРАВЛЕНИЕ ЦВЕТАМИ
 // ========================================
