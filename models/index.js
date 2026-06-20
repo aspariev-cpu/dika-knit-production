@@ -1,13 +1,10 @@
 require('dotenv').config();
 const { Sequelize, DataTypes } = require('sequelize');
 
-// ✅ ПРОСТОЕ ПОДКЛЮЧЕНИЕ — SSL ОТКЛЮЧЁН
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
-    dialectOptions: {
-        ssl: false
-    }
+    timezone: '+03:00'
 });
 
 // ========================================
