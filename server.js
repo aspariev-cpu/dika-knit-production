@@ -517,60 +517,27 @@ app.get('/admin/shifts', async (req, res) => {
             include: [
                 { model: User, as: 'employee' },
                 { 
-                    model: Task,
-                    include: [
-                        { model: Model }
-                    ]
-                },
-                { model: Machine, as: 'machine' }
-            ],
-            order: [['createdAt', 'DESC']],
-            timezone: '+03:00'
-        });
-        
-        const summary = {};
-        operations.forEach(op => {
-            const name = op.employee ? op.employee.fullName : 'Неизвестный';
-            if (!summary[name]) {
-                summary[name] = {
-                    total: 0,
-                    machines: new Set()
-                };
-            }
-            summary[name].total += op.quantity;
-            if (op.machine) summary[name].machines.add(op.machine.machineNumber);
-        });
-        
-        const formattedSummary = Object.keys(summary).map(name => ({
-            name,
-            total: summary[name].total,
-            machines: Array.from(summary[name].machines).join(', ')
-        }));
-        
-        res.render('admin/shifts', {
-            summary: formattedSummary,
-            operations: operations,
-            date: date || new Date().toISOString().split('T')[0],
-            shift: shift || 'day',
-            user: { fullName: 'Администратор', isAdmin: true }
-        });
-    } catch (err) {
-        console.error('Ошибка при загрузке статистики:', err);
-        res.status(500).send('Ошибка при загрузке статистики: ' + err.message);
-    }
-});
+л
 
 // ========================================
 //  ВЫГРУЗКА СМЕНЫ В EXCEL
 // ========================================
 
-app.get('/admin/shifts/export', async (req, res) => {
+app.get('/admin/shifts', async (req, res) => {
     try {
         const { date, shift } = req.query;
         let whereClause = {};
+        let selectedDate = null;
         
         if (date) {
-            const selectedDate = new Date(date);
+            selectedDate = new Date(date);
+            if (isNaN(selectedDate.getTime())) {
+                console.error(`❌ Неверный формат даты: ${date}`);
+                selectedDate = null;
+            }
+        }
+        
+        if (selectedDate) {
             let startDate, endDate;
             
             if (shift === 'day') {
@@ -612,52 +579,37 @@ app.get('/admin/shifts/export', async (req, res) => {
             timezone: '+03:00'
         });
         
-        const data = operations.map(op => ({
-            'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
-            'Сотрудник': op.employee?.fullName || '—',
-            'Программа': op.Task?.Model?.program || '—',
-            'Количество': op.quantity,
-            'Станок': op.machine?.machineNumber || '—',
-            'ИП': op.Task?.ip || '—',
-            'Модель': op.Task?.Model?.name || '—',
-            'Цвет': op.Task?.Color?.name || '—',
-            'Размер': op.Task?.Model?.size || '—',
-            'Класс': op.Task?.Model?.className || '—'
+        const summary = {};
+        operations.forEach(op => {
+            const name = op.employee ? op.employee.fullName : 'Неизвестный';
+            if (!summary[name]) {
+                summary[name] = {
+                    total: 0,
+                    machines: new Set()
+                };
+            }
+            summary[name].total += op.quantity;
+            if (op.machine) summary[name].machines.add(op.machine.machineNumber);
+        });
+        
+        const formattedSummary = Object.keys(summary).map(name => ({
+            name,
+            total: summary[name].total,
+            machines: Array.from(summary[name].machines).join(', ')
         }));
         
-        if (data.length === 0) {
-            return res.send('За эту смену нет данных');
-        }
+        const validDate = selectedDate ? selectedDate.toISOString().split('T')[0] : '';
         
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(wb, ws, 'Смена');
-        
-        ws['!cols'] = [
-            { wch: 20 },
-            { wch: 20 },
-            { wch: 15 },
-            { wch: 12 },
-            { wch: 12 },
-            { wch: 15 },
-            { wch: 20 },
-            { wch: 15 },
-            { wch: 12 },
-            { wch: 12 }
-        ];
-        
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-        
-        const dateStr = date || new Date().toISOString().split('T')[0];
-        const shiftName = shift === 'day' ? 'дневная' : 'ночная';
-        
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=smena-${dateStr}-${shiftName}.xlsx`);
-        res.send(buffer);
-        
+        res.render('admin/shifts', {
+            summary: formattedSummary,
+            operations: operations,
+            date: validDate,
+            shift: shift || 'day',
+            user: { fullName: 'Администратор', isAdmin: true }
+        });
     } catch (err) {
-        console.error('Ошибка выгрузки Excel:', err);
-        res.status(500).send('Ошибка при выгрузке');
+        console.error('Ошибка при загрузке статистики:', err);
+        res.status(500).send('Ошибка при загрузке статистики: ' + err.message);
     }
 });
 
