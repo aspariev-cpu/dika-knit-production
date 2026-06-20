@@ -6,7 +6,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     logging: false,
     timezone: '+03:00',
     dialectOptions: {
-        useUTC: false, // ← ОТКЛЮЧАЕМ UTC, чтобы БД хранила локальное время
+        useUTC: false,
         timezone: 'Europe/Moscow'
     }
 });
@@ -91,15 +91,12 @@ const Operation = sequelize.define('Operation', {
 //  СВЯЗИ
 // ========================================
 
-// Модель → Детали
 Model.hasMany(ModelPart, { as: 'parts', foreignKey: 'modelId' });
 ModelPart.belongsTo(Model, { foreignKey: 'modelId' });
 
-// Задание → Модель, Цвет
 Task.belongsTo(Model, { foreignKey: 'modelId' });
 Task.belongsTo(Color, { foreignKey: 'colorId' });
 
-// Операции → Задание, Пользователь, Станок
 Task.hasMany(Operation, { as: 'operations', foreignKey: 'taskId' });
 Operation.belongsTo(Task, { foreignKey: 'taskId' });
 Operation.belongsTo(User, { as: 'employee', foreignKey: 'employeeId' });
