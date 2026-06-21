@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Профиль</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .profile-container {
+            max-width: 500px;
+            margin: 80px auto 40px;
+            padding: 40px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 20px;
+            border: 1px solid rgba(201,169,89,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .profile-container h1 {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .profile-container .subtitle {
+            color: #8892b0;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            color: #8892b0;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(201,169,89,0.15);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            transition: 0.3s;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #c9a959;
+            box-shadow: 0 0 20px rgba(201,169,89,0.1);
+        }
+        .form-group input::placeholder {
+            color: #475569;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #c9a959, #b89840);
+            border: none;
+            border-radius: 10px;
+            color: #0a0e1a;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+        .btn-submit:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 30px rgba(201,169,89,0.3);
+        }
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .message {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .message.success {
+            background: rgba(74,222,128,0.15);
+            border: 1px solid rgba(74,222,128,0.3);
+            color: #4ade80;
+        }
+        .message.error {
+            background: rgba(248,113,113,0.15);
+            border: 1px solid rgba(248,113,113,0.3);
+            color: #f87171;
+        }
+        .btn-back {
+            display: inline-block;
+            margin-top: 15px;
+            color: #8892b0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .btn-back:hover {
+            color: #c9a959;
+        }
+        .user-info {
+            background: rgba(255,255,255,0.03);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .user-info .label {
+            color: #8892b0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .user-info .value {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 40px;
+            background: rgba(10,14,26,0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(201,169,89,0.06);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+        .logo span {
+            color: #c9a959;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #8892b0;
+            font-size: 14px;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c9a959, #b89840);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0a0e1a;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .header-right a {
+            color: #f87171;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .header-right a:hover {
+            opacity: 0.8;
+        }
+        body {
+            padding-top: 80px;
+            min-height: 100vh;
+            background: #0a0e1a;
+        }
+        .password-hint {
+            color: #475569;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Dika <span>Knit</span></div>
+        <div class="header-right">
+            <span class="header-user">
+                <span class="avatar"><%= user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U' %></span>
+                <%= user.fullName || 'Пользователь' %>
+            </span>
+            <a href="/logout">Выйти</a>
+        </div>
+    </div>
+
+    <div class="profile-container">
+        <h1>🔐 Смена пароля</h1>
+        <p class="subtitle">Обновите пароль для безопасности</p>
+
+        <% if (message) { %>
+            <div class="message success"><%= message %></div>
+        <% } %>
+        <% if (error) { %>
+            <div class="message error"><%= error %></div>
+        <% } %>
+
+        <div class="user-info">
+            <div class="label">Пользователь</div>
+            <div class="value"><%= user.fullName || user.username %></div>
+            <div class="label" style="margin-top:8px;">Роль</div>
+            <div class="value" style="font-size:14px; color:#c9a959; text-transform:uppercase;"><%= user.role || 'admin' %></div>
+        </div>
+
+        <form id="changePasswordForm" onsubmit="changePassword(event)">
+            <div class="form-group">
+                <label for="currentPassword">Текущий пароль</label>
+                <input type="password" id="currentPassword" name="currentPassword" placeholder="Введите текущий пароль" required>
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">Новый пароль</label>
+                <input type="password" id="newPassword" name="newPassword" placeholder="Введите новый пароль (мин. 6 символов)" required minlength="6">
+                <div class="password-hint">Пароль должен содержать минимум 6 символов</div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Подтверждение пароля</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Повторите новый пароль" required>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">🔄 Сменить пароль</button>
+        </form>
+
+        <a href="/admin" class="btn-back">← Вернуться в админ-панель</a>
+    </div>
+
+    <script>
+        async function changePassword(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const submitBtn = document.getElementById('submitBtn');
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Валидация на клиенте
+            if (newPassword !== confirmPassword) {
+                showMessage('❌ Новый пароль и подтверждение не совпадают', 'error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showMessage('❌ Пароль должен быть не менее 6 символов', 'error');
+                return;
+            }
+
+            // Блокируем кнопку
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Сохранение...';
+
+            try {
+                const response = await fetch('/api/profile/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        currentPassword,
+                        newPassword,
+                        confirmPassword
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✅ ' + result.message, 'success');
+                    form.reset();
+                    
+                    // Перенаправление через 2 секунды
+                    setTimeout(() => {
+                        window.location.href = '/admin?message=' + encodeURIComponent('Пароль успешно изменён!');
+                    }, 2000);
+                } else {
+                    showMessage('❌ ' + result.error, 'error');
+                }
+            } catch (err) {
+                showMessage('❌ Ошибка: ' + err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🔄 Сменить пароль';
+            }
+        }
+
+        function showMessage(text, type) {
+            // Удаляем старые сообщения
+            const oldMessages = document.querySelectorAll('.message');
+            oldMessages.forEach(el => el.remove());
+
+            // Создаём новое сообщение
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            
+            // Вставляем после заголовка
+            const container = document.querySelector('.profile-container');
+            const subtitle = container.querySelector('.subtitle');
+            subtitle.after(messageDiv);
+
+            // Автоматическое скрытие через 5 секунд
+            setTimeout(() => {
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transition = 'opacity 0.5s';
+                setTimeout(() => messageDiv.remove(), 500);
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
