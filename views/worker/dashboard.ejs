@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Вязальщик</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .task-card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 16px;
+            padding: 20px 24px;
+            border: 1px solid rgba(201,169,89,0.06);
+            transition: 0.3s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .task-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(201,169,89,0.15);
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
+        }
+        .task-card.urgent {
+            border: 2px solid #c9a959;
+            background: linear-gradient(135deg, rgba(201,169,89,0.15), rgba(201,169,89,0.05));
+            box-shadow: 0 0 30px rgba(201,169,89,0.1);
+            position: relative;
+        }
+        .task-card.urgent::before {
+            content: "СРОЧНО";
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #f87171;
+            color: #fff;
+            font-weight: 800;
+            font-size: 10px;
+            padding: 2px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+        .task-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .tasks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+            align-items: stretch;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .section-header .toggle-btn {
+            font-size: 20px;
+            font-weight: 700;
+            color: #c9a959;
+            width: 30px;
+            text-align: center;
+            transition: 0.2s;
+        }
+        .section-header .toggle-btn:hover {
+            transform: scale(1.2);
+        }
+        .section-header .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .section-header .section-count {
+            color: #8892b0;
+            font-size: 14px;
+            margin-left: auto;
+        }
+        .section-body {
+            transition: 0.3s ease;
+        }
+        .section-body.hidden {
+            display: none;
+        }
+        .coat-parts-container {
+            margin-top: 12px;
+            border-top: 1px solid rgba(201,169,89,0.1);
+            padding-top: 12px;
+        }
+        .coat-parts-title {
+            color: #8892b0;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .part-block {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(201,169,89,0.05);
+        }
+        .part-block:last-child {
+            margin-bottom: 0;
+        }
+        .part-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .part-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+        }
+        .part-program {
+            color: #8892b0;
+            font-size: 12px;
+        }
+        .part-progress {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #8892b0;
+        }
+        .part-progress .value {
+            color: #c9a959;
+            font-weight: 600;
+        }
+        .part-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .part-actions .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .part-actions label {
+            font-size: 9px;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .part-actions select,
+        .part-actions input {
+            padding: 4px 8px;
+            font-size: 12px;
+            height: 30px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(201,169,89,0.15);
+            border-radius: 6px;
+            color: #fff;
+            min-width: 70px;
+        }
+        .part-actions select option {
+            background: #1a1f36;
+            color: #fff;
+            padding: 4px 8px;
+        }
+        .part-actions select:focus,
+        .part-actions input:focus {
+            outline: none;
+            border-color: #c9a959;
+        }
+        .part-actions .btn {
+            padding: 4px 14px;
+            font-size: 12px;
+            height: 30px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .part-actions .btn-save {
+            background: linear-gradient(135deg, #c9a959, #b89840);
+            color: #0a0e1a;
+        }
+        .part-actions .btn-save:hover {
+            transform: scale(1.02);
+        }
+        .part-actions .btn-print {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        .part-actions .btn-print:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .part-actions .btn-undo {
+            background: #ff6b6b;
+            color: #fff;
+        }
+        .part-actions .btn-undo:hover {
+            background: #ff5252;
+        }
+        .part-progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .part-progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #c9a959, #e8c97a);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .regular-actions {
+            display: flex;
+            gap: 6px;
+            align-items: flex-end;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .regular-actions .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .regular-actions label {
+            font-size: 9px;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .regular-actions select,
+        .regular-actions input {
+            padding: 4px 8px;
+            font-size: 12px;
+            height: 30px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(201,169,89,0.15);
+            border-radius: 6px;
+            color: #fff;
+            min-width: 70px;
+        }
+        .regular-actions select option {
+            background: #1a1f36;
+            color: #fff;
+            padding: 4px 8px;
+        }
+        .regular-actions select:focus,
+        .regular-actions input:focus {
+            outline: none;
+            border-color: #c9a959;
+        }
+        .regular-actions .btn {
+            padding: 4px 14px;
+            font-size: 12px;
+            height: 30px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .regular-actions .btn-save {
+            background: linear-gradient(135deg, #c9a959, #b89840);
+            color: #0a0e1a;
+        }
+        .regular-actions .btn-save:hover {
+            transform: scale(1.02);
+        }
+        .regular-actions .btn-print {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        .regular-actions .btn-print:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .regular-actions .btn-undo {
+            background: #ff6b6b;
+            color: #fff;
+        }
+        .regular-actions .btn-undo:hover {
+            background: #ff5252;
+        }
+        .send-btn-container {
+            margin-top: 12px;
+            text-align: right;
+        }
+        .btn-send-admin {
+            padding: 8px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            background: #4ade80;
+            border: none;
+            border-radius: 8px;
+            color: #0a0e1a;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-send-admin:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(74,222,128,0.3);
+        }
+        select option {
+            background: #1a1f36 !important;
+            color: #fff !important;
+            padding: 4px 8px;
+        }
+        select option:hover {
+            background: rgba(201,169,89,0.2) !important;
+        }
+        .task-top {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .task-image {
+            flex-shrink: 0;
+        }
+        .task-image img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid rgba(201,169,89,0.2);
+            transition: 0.3s;
+        }
+        .task-image img:hover {
+            border-color: #c9a959;
+        }
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .task-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .task-meta {
+            color: #8892b0;
+            font-size: 13px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .task-meta strong {
+            color: #fff;
+        }
+        .task-progress-block {
+            margin: 12px 0;
+        }
+        .task-progress-block .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #8892b0;
+            margin-bottom: 4px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #c9a959, #e8c97a);
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #475569;
+            grid-column: 1/-1;
+        }
+        .empty-icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 15px;
+        }
+        .empty-state p {
+            font-size: 18px;
+            color: #8892b0;
+        }
+        .empty-message {
+            color: #475569;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #1a1f36;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid rgba(201,169,89,0.1);
+        }
+        .modal-content h2 {
+            color: #c9a959;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .modal-buttons .btn {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1;
+            min-width: 100px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #c9a959, #b89840);
+            color: #0a0e1a;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        .class-block {
+            margin-bottom: 30px;
+        }
+        .class-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .class-header .class-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #c9a959;
+        }
+        .class-header .class-count {
+            color: #8892b0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Dika <span>Knit</span></div>
+        <div class="header-right">
+            <span class="header-user">
+                <span class="avatar"><%= user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U' %></span>
+                <%= user.fullName || 'Вязальщик' %>
+            </span>
+            <a href="/logout" style="color:#f87171; text-decoration:none;">Выйти</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">🧵 Мои задания</h1>
+
+        <%
+            const hasShapki = shapkiTasks && shapkiTasks.length > 0;
+            const hasCoat = coatTasks && coatTasks.length > 0;
+            const hasTasks = hasShapki || hasCoat;
+            const classOrder = ['Stoll', '5', '7', '12', '14'];
+            
+            function groupByClass(taskList) {
+                const grouped = {};
+                classOrder.forEach(cls => grouped[cls] = []);
+                
+                taskList.forEach(task => {
+                    let className = task.Model ? task.Model.className : 'Без класса';
+                    if (grouped[className]) {
+                        grouped[className].push(task);
+                    } else {
+                        grouped[className] = [task];
+                    }
+                });
+                return grouped;
+            }
+            
+            function getPartProgress(part) {
+                return part.doneQuantity || 0;
+            }
+            
+            function getCoatTotal(coat) {
+                const parts = coat.parts || [];
+                let totalDone = 0;
+                let totalPlan = 0;
+                parts.forEach(part => {
+                    const done = getPartProgress(part);
+                    totalDone += Math.min(done, part.planQuantity);
+                    totalPlan += part.planQuantity;
+                });
+                return { totalDone, totalPlan };
+            }
+            
+            const shapkiByClass = groupByClass(shapkiTasks || []);
+            const coatByClass = groupByClass(coatTasks || []);
+        %>
+
+        <!-- ======================================== -->
+        <!-- СЕКЦИЯ: ШАПКИ                            -->
+        <!-- ======================================== -->
+        <% if (hasShapki) { %>
+            <div class="section" id="shapkiSection">
+                <div class="section-header" onclick="toggleSection('shapki')">
+                    <span class="toggle-btn" id="shapkiToggle">−</span>
+                    <span class="section-title">🧢 Шапки</span>
+                    <span class="section-count"><%= shapkiTasks.length %> заказа(ов)</span>
+                </div>
+                <div class="section-body" id="shapkiBody">
+                    <% classOrder.forEach(className => { 
+                        const taskList = shapkiByClass[className] || [];
+                        if (taskList.length === 0) return;
+                    %>
+                        <div class="class-block">
+                            <div class="class-header">
+                                <span class="class-title">🔧 Класс <%= className %></span>
+                                <span class="class-count"><%= taskList.length %> заказа(ов)</span>
+                            </div>
+                            <div class="tasks-grid">
+                                <% taskList.forEach(task => { 
+                                    const totalDone = task.doneQuantity || 0;
+                                    const percent = task.planQuantity > 0 ? Math.min((totalDone / task.planQuantity) * 100, 100) : 0;
+                                    const isCompleted = percent >= 100;
+                                %>
+                                    <div class="task-card <%= task.isUrgent ? 'urgent' : '' %>" 
+                                         data-task-id="<%= task.id %>" 
+                                         data-last-printed="<%= task.lastPrintedAt || '' %>"
+                                         data-ip="<%= task.ip || '' %>"
+                                         data-urgent="<%= task.isUrgent ? 'true' : 'false' %>">
+                                        <div class="task-content">
+                                            <div class="task-top">
+                                                <% if (task.Model && task.Model.image) { %>
+                                                    <div class="task-image">
+                                                        <img src="<%= task.Model.image %>" alt="Фото" onclick="openImageModal('<%= task.Model.image %>')">
+                                                    </div>
+                                                <% } %>
+                                                <div class="task-info">
+                                                    <div class="task-title">
+                                                        <%= task.isUrgent ? '🔥 ' : '' %><%= task.Model ? task.Model.name : '—' %>
+                                                    </div>
+                                                    <div class="task-meta">
+                                                        <span>📄 <strong><%= task.Model ? task.Model.program : '—' %></strong></span>
+                                                        <span>📏 <strong><%= task.Model ? task.Model.size : '—' %></strong></span>
+                                                        <span>🎨 <strong><%= task.Color ? task.Color.name : '—' %></strong></span>
+                                                    </div>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🧵 Пряжа: <strong><%= task.Model ? task.Model.yarn : '—' %></strong>
+                                                    </div>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🏢 ИП: <strong><%= task.ip || '—' %></strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="task-progress-block">
+                                                <div class="progress-label">
+                                                    <span>Прогресс</span>
+                                                    <span id="progress-text-<%= task.id %>"><strong style="color: #fff;" id="done-<%= task.id %>"><%= totalDone %></strong> из <strong style="color: #c9a959;"><%= task.planQuantity %></strong> шт. (<span id="percent-<%= task.id %>"><%= Math.round(percent) %></span>%)</span>
+                                                </div>
+                                                <div class="progress-bar">
+                                                    <div id="progress-fill-<%= task.id %>" class="progress-fill" style="width:<%= percent %>%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <div class="regular-actions">
+                                                <form class="inline-form" onsubmit="event.preventDefault(); submitOperation(this)" style="display:flex; flex-wrap:wrap; gap:6px; align-items:flex-end;">
+                                                    <input type="hidden" name="taskId" value="<%= task.id %>">
+                                                    <div class="form-group">
+                                                        <label>Станок</label>
+                                                        <select name="machineId" required>
+                                                            <option value="">Выбрать</option>
+                                                            <% for (let i = 1; i <= 15; i++) { %>
+                                                                <option value="<%= i %>">№<%= i %></option>
+                                                            <% } %>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label>Кол-во</label>
+                                                        <input type="number" name="quantity" placeholder="шт." min="1" required>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-save">💾 Сохранить</button>
+                                                </form>
+                                                <button onclick="printLabel(<%= task.id %>)" class="btn btn-print">🖨️ Печать</button>
+                                                <% if (task.operations && task.operations.length > 0) { %>
+                                                    <button onclick="undoOperation(<%= task.id %>)" class="btn btn-undo">↩️ Отменить</button>
+                                                <% } %>
+                                            </div>
+
+                                            <% if (isCompleted && task.status !== 'completed') { %>
+                                                <div class="send-btn-container">
+                                                    <button id="send-btn-<%= task.id %>" class="btn-send-admin" onclick="sendToAdmin(<%= task.id %>)">
+                                                        📤 Отправить админу
+                                                    </button>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+
+        <!-- ======================================== -->
+        <!-- СЕКЦИЯ: КОФТЫ                            -->
+        <!-- ======================================== -->
+        <% if (hasCoat) { %>
+            <div class="section" id="coatSection">
+                <div class="section-header" onclick="toggleSection('coat')">
+                    <span class="toggle-btn" id="coatToggle">−</span>
+                    <span class="section-title">🧥 Кофты</span>
+                    <span class="section-count"><%= coatTasks.length %> заказа(ов)</span>
+                </div>
+                <div class="section-body" id="coatBody">
+                    <% classOrder.forEach(className => { 
+                        const taskList = coatByClass[className] || [];
+                        if (taskList.length === 0) return;
+                    %>
+                        <div class="class-block">
+                            <div class="class-header">
+                                <span class="class-title">🔧 Класс <%= className %></span>
+                                <span class="class-count"><%= taskList.length %> заказа(ов)</span>
+                            </div>
+                            <div class="tasks-grid">
+                                <% taskList.forEach(coat => { 
+                                    const parts = coat.parts || [];
+                                    const coatTotal = getCoatTotal(coat);
+                                    const totalDone = coatTotal.totalDone;
+                                    const totalPlan = coatTotal.totalPlan;
+                                    const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
+                                    const isCompleted = percent >= 100;
+                                %>
+                                    <div class="task-card <%= coat.isUrgent ? 'urgent' : '' %>" 
+                                         data-task-id="<%= coat.id %>" 
+                                         data-last-printed="<%= coat.lastPrintedAt || '' %>"
+                                         data-ip="<%= coat.ip || '' %>"
+                                         data-urgent="<%= coat.isUrgent ? 'true' : 'false' %>">
+                                        <div class="task-content">
+                                            <div class="task-top">
+                                                <% if (coat.Model && coat.Model.image) { %>
+                                                    <div class="task-image">
+                                                        <img src="<%= coat.Model.image %>" alt="Фото" onclick="openImageModal('<%= coat.Model.image %>')">
+                                                    </div>
+                                                <% } %>
+                                                <div class="task-info">
+                                                    <div class="task-title">
+                                                        <%= coat.isUrgent ? '🔥 ' : '' %><%= coat.Model ? coat.Model.name : '—' %>
+                                                    </div>
+                                                    <div class="task-meta">
+                                                        <span>📄 <strong><%= coat.Model ? coat.Model.program : '—' %></strong></span>
+                                                        <span>📏 <strong><%= coat.Model ? coat.Model.size : '—' %></strong></span>
+                                                        <span>🎨 <strong><%= coat.Color ? coat.Color.name : '—' %></strong></span>
+                                                    </div>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🧵 Пряжа: <strong><%= coat.Model ? coat.Model.yarn : '—' %></strong>
+                                                    </div>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🏢 ИП: <strong><%= coat.ip || '—' %></strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="task-progress-block">
+                                                <div class="progress-label">
+                                                    <span>Общий прогресс</span>
+                                                    <span id="progress-text-<%= coat.id %>"><strong style="color: #fff;" id="done-<%= coat.id %>"><%= totalDone %></strong> из <strong style="color: #c9a959;"><%= totalPlan %></strong> шт. (<span id="percent-<%= coat.id %>"><%= Math.round(percent) %></span>%)</span>
+                                                </div>
+                                                <div class="progress-bar">
+                                                    <div id="progress-fill-<%= coat.id %>" class="progress-fill" style="width:<%= percent %>%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <% if (parts.length > 0) { %>
+                                                <div class="coat-parts-container">
+                                                    <div class="coat-parts-title">🧵 Детали кофты</div>
+                                                    <% parts.forEach((part, index) => { 
+                                                        const partDone = part.doneQuantity || 0;
+                                                        const partPercent = part.planQuantity > 0 ? Math.min((partDone / part.planQuantity) * 100, 100) : 0;
+                                                        const partName = part.partName || part.Model?.name || 'Деталь';
+                                                    %>
+                                                        <div class="part-block" data-part-id="<%= part.id %>" data-part-index="<%= index %>">
+                                                            <div class="part-header">
+                                                                <span class="part-name"><%= partName %></span>
+                                                                <span class="part-program"><%= part.Model ? part.Model.program : '—' %></span>
+                                                            </div>
+                                                            <div class="part-progress">
+                                                                <span>Выполнено: <span class="value"><%= partDone %>/<%= part.planQuantity %></span></span>
+                                                                <span><%= Math.round(partPercent) %>%</span>
+                                                            </div>
+                                                            <div class="part-progress-bar">
+                                                                <div class="fill" style="width:<%= partPercent %>%;"></div>
+                                                            </div>
+                                                            <div class="part-actions">
+                                                                <form class="part-form" onsubmit="event.preventDefault(); submitOperationPart(this, <%= part.id %>)">
+                                                                    <input type="hidden" name="taskId" value="<%= part.id %>">
+                                                                    <div class="form-group">
+                                                                        <label>Станок</label>
+                                                                        <select name="machineId" required>
+                                                                            <option value="">Выбрать</option>
+                                                                            <% for (let i = 1; i <= 15; i++) { %>
+                                                                                <option value="<%= i %>">№<%= i %></option>
+                                                                            <% } %>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Кол-во</label>
+                                                                        <input type="number" name="quantity" placeholder="шт." min="1" required style="width:60px;">
+                                                                    </div>
+                                                                    <button type="submit" class="btn btn-save">💾 Сохранить</button>
+                                                                </form>
+                                                                <button class="btn btn-print" onclick="printPartLabel(<%= part.id %>, '<%= partName %>')">🖨️ Печать</button>
+                                                                <% if (part.operations && part.operations.length > 0) { %>
+                                                                    <button class="btn btn-undo" onclick="undoOperation(<%= part.id %>)">↩️ Отменить</button>
+                                                                <% } %>
+                                                            </div>
+                                                        </div>
+                                                    <% }); %>
+                                                </div>
+                                            <% } %>
+
+                                            <% if (isCompleted && coat.status !== 'completed') { %>
+                                                <div class="send-btn-container">
+                                                    <button id="send-btn-<%= coat.id %>" class="btn-send-admin" onclick="sendToAdmin(<%= coat.id %>)">
+                                                        📤 Отправить админу
+                                                    </button>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+
+        <% if (!hasTasks) { %>
+            <div class="empty-state">
+                <span class="empty-icon">📭</span>
+                <p>Нет активных заданий</p>
+                <span class="empty-message">Ожидайте новых задач от администратора</span>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- ========== МОДАЛЬНЫЕ ОКНА ========== -->
+    <div id="imageModal" class="modal" style="display: none;">
+        <div style="position:relative; max-width:90vw; max-height:90vh;">
+            <img id="modalImage" src="" alt="Увеличенное фото" style="max-width:90vw; max-height:85vh; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+            <button onclick="closeImageModal()" style="position:absolute; top:-15px; right:-15px; background:#f87171; color:#fff; border:none; border-radius:50%; width:36px; height:36px; font-size:18px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.4);">✕</button>
+        </div>
+    </div>
+
+    <div id="printPreviewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>🖨️ Предпросмотр бирки</h2>
+            <div id="printPreviewContent" style="background:#fff; padding:20px; border-radius:8px; margin:15px 0; color:#000; text-align:left; font-family:Arial, sans-serif;">
+                <div style="font-size:12px; color:#c9a959; font-weight:800; text-transform:uppercase; border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:8px;">
+                    ✦ Dika Knit
+                </div>
+                <div id="previewModel" style="font-size:18px; font-weight:700; color:#0f0c29;"></div>
+                <div id="previewDetails" style="font-size:12px; color:#555;"></div>
+                <div id="previewQuantity" style="font-size:14px; font-weight:600; color:#c9a959; margin-top:5px;"></div>
+                <div style="font-size:8px; color:#aaa; border-top:1px solid #eee; padding-top:5px; margin-top:5px; text-align:center;">
+                    Dika Knit Production
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="printPreviewBtn" class="btn btn-primary">🖨️ Печать</button>
+                <button id="printPreviewCloseBtn" class="btn btn-secondary">✖️ Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        // ========================================
+        //  РАБОТА С СЕКЦИЯМИ
+        // ========================================
+        function toggleSection(section) {
+            const body = document.getElementById(section + 'Body');
+            const toggle = document.getElementById(section + 'Toggle');
+            
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                toggle.textContent = '−';
+                localStorage.setItem('show' + section.charAt(0).toUpperCase() + section.slice(1), 'true');
+            } else {
+                body.classList.add('hidden');
+                toggle.textContent = '+';
+                localStorage.setItem('show' + section.charAt(0).toUpperCase() + section.slice(1), 'false');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = ['shapki', 'coat'];
+            sections.forEach(section => {
+                const body = document.getElementById(section + 'Body');
+                const toggle = document.getElementById(section + 'Toggle');
+                if (body && toggle) {
+                    const show = localStorage.getItem('show' + section.charAt(0).toUpperCase() + section.slice(1));
+                    if (show === 'false') {
+                        body.classList.add('hidden');
+                        toggle.textContent = '+';
+                    } else {
+                        body.classList.remove('hidden');
+                        toggle.textContent = '−';
+                    }
+                }
+            });
+        });
+
+        // ========================================
+        //  ФОТО
+        // ========================================
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            document.getElementById('modalImage').src = imageSrc;
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.onclick = function(event) {
+            const imageModal = document.getElementById('imageModal');
+            const printModal = document.getElementById('printPreviewModal');
+            if (event.target === imageModal) closeImageModal();
+            if (event.target === printModal) {
+                printModal.style.display = 'none';
+            }
+        };
+
+        // ========================================
+        //  ОТПРАВКА ВЫРАБОТКИ (ШАПКИ)
+        // ========================================
+        async function submitOperation(form) {
+            const formData = new FormData(form);
+            const data = {
+                taskId: formData.get('taskId'),
+                machineId: formData.get('machineId'),
+                quantity: formData.get('quantity')
+            };
+
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/operations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const taskId = data.taskId;
+                    updateTaskProgress(taskId, result);
+                    
+                    const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+                    const modelName = taskCard?.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+                    const color = taskCard?.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+                    const program = taskCard?.querySelector('.task-meta span:nth-child(1)')?.textContent?.replace('📄', '').trim() || '—';
+                    const size = taskCard?.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+                    const className = taskCard?.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+                    const yarn = taskCard?.querySelector('.task-meta strong')?.textContent?.trim() || '—';
+                    
+                    showPreview({
+                        modelName: modelName,
+                        partName: null,
+                        quantity: data.quantity,
+                        program: program,
+                        size: size,
+                        color: color,
+                        className: className,
+                        yarn: yarn,
+                        taskId: data.taskId,
+                        operationId: result.operationId,
+                        machineId: result.machineId
+                    });
+                    
+                    showNotification(`✅ +${data.quantity} шт.`, 'success');
+                    form.querySelector('input[name="quantity"]').value = '';
+                } else {
+                    alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            } catch (err) {
+                alert('❌ Ошибка: ' + err.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // ========================================
+        //  ОТПРАВКА ВЫРАБОТКИ (ДЕТАЛИ КОФТЫ)
+        // ========================================
+        async function submitOperationPart(form, partId) {
+            const formData = new FormData(form);
+            const data = {
+                taskId: partId,
+                machineId: formData.get('machineId'),
+                quantity: formData.get('quantity')
+            };
+
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/operations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Обновляем прогресс детали
+                    const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
+                    if (partBlock) {
+                        const progressText = partBlock.querySelector('.part-progress .value');
+                        const percentText = partBlock.querySelector('.part-progress span:last-child');
+                        const progressFillBar = partBlock.querySelector('.part-progress-bar .fill');
+                        const partPercent = Math.min((result.totalDone / result.planQuantity) * 100, 100);
+                        if (progressText) progressText.textContent = `${result.totalDone}/${result.planQuantity}`;
+                        if (percentText) percentText.textContent = `${Math.round(partPercent)}%`;
+                        if (progressFillBar) progressFillBar.style.width = partPercent + '%';
+                    }
+
+                    // Обновляем общий прогресс кофты
+                    if (result.parentProgress) {
+                        const coatCard = document.querySelector(`.part-block[data-part-id="${partId}"]`)?.closest('.task-card');
+                        const coatId = coatCard?.dataset.taskId;
+                        if (coatId) {
+                            updateCoatProgress(coatId, result.parentProgress);
+                        }
+                    }
+
+                    // ПОКАЗЫВАЕМ ПРЕДПРОСМОТР ПЕЧАТИ
+                    const taskCard = document.querySelector(`.part-block[data-part-id="${partId}"]`)?.closest('.task-card');
+                    const modelName = taskCard?.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+                    const color = taskCard?.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+                    const program = taskCard?.querySelector('.task-meta span:nth-child(1)')?.textContent?.replace('📄', '').trim() || '—';
+                    const size = taskCard?.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+                    const className = taskCard?.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+                    const partName = partBlock?.querySelector('.part-name')?.textContent?.trim() || 'Деталь';
+                    const partProgram = partBlock?.querySelector('.part-program')?.textContent?.trim() || '—';
+                    
+                    showPreview({
+                        modelName: modelName,
+                        partName: partName,
+                        quantity: data.quantity,
+                        program: partProgram || program,
+                        size: size,
+                        color: color,
+                        className: className,
+                        yarn: taskCard?.querySelector('.task-meta strong')?.textContent?.trim() || '—',
+                        taskId: data.taskId,
+                        operationId: result.operationId,
+                        machineId: result.machineId
+                    });
+
+                    showNotification(`✅ +${data.quantity} шт. для детали`, 'success');
+                    form.querySelector('input[name="quantity"]').value = '';
+                } else {
+                    alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            } catch (err) {
+                alert('❌ Ошибка: ' + err.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // ========================================
+        //  ОБНОВЛЕНИЕ ПРОГРЕССА ЗАДАНИЯ
+        // ========================================
+        function updateTaskProgress(taskId, result) {
+            const doneElement = document.getElementById('done-' + taskId);
+            const percentElement = document.getElementById('percent-' + taskId);
+            const progressFill = document.getElementById('progress-fill-' + taskId);
+            const progressText = document.getElementById('progress-text-' + taskId);
+
+            if (doneElement) doneElement.textContent = result.totalDone;
+            if (percentElement) percentElement.textContent = Math.round(result.percent);
+            if (progressFill) progressFill.style.width = result.percent + '%';
+            
+            if (progressText) {
+                progressText.innerHTML = `<strong style="color: #fff;" id="done-${taskId}">${result.totalDone}</strong> из <strong style="color: #c9a959;">${result.planQuantity}</strong> шт. (<span id="percent-${taskId}">${Math.round(result.percent)}</span>%)`;
+            }
+
+            const sendBtn = document.getElementById('send-btn-' + taskId);
+            if (sendBtn) {
+                sendBtn.style.display = result.percent >= 100 ? 'block' : 'none';
+            }
+        }
+
+        // ========================================
+        //  ОБНОВЛЕНИЕ ПРОГРЕССА КОФТЫ
+        // ========================================
+        function updateCoatProgress(coatId, progress) {
+            const doneElement = document.getElementById('done-' + coatId);
+            const percentElement = document.getElementById('percent-' + coatId);
+            const progressFill = document.getElementById('progress-fill-' + coatId);
+            const progressText = document.getElementById('progress-text-' + coatId);
+
+            if (doneElement) doneElement.textContent = progress.totalDone;
+            if (percentElement) percentElement.textContent = Math.round(progress.percent);
+            if (progressFill) progressFill.style.width = progress.percent + '%';
+            
+            if (progressText) {
+                progressText.innerHTML = `<strong style="color: #fff;" id="done-${coatId}">${progress.totalDone}</strong> из <strong style="color: #c9a959;">${progress.totalPlan}</strong> шт. (<span id="percent-${coatId}">${Math.round(progress.percent)}</span>%)`;
+            }
+
+            const sendBtn = document.getElementById('send-btn-' + coatId);
+            if (sendBtn) {
+                sendBtn.style.display = progress.percent >= 100 ? 'block' : 'none';
+            }
+        }
+
+        // ========================================
+        //  ПРЕДПРОСМОТР
+        // ========================================
+        function showPreview(data) {
+            const modal = document.getElementById('printPreviewModal');
+            document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
+            document.getElementById('previewDetails').innerHTML = `
+                Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
+                Программа: ${data.program || '—'}<br>
+                Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
+            `;
+            document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
+            
+            modal.dataset.taskId = data.taskId;
+            modal.dataset.operationId = data.operationId;
+            modal.dataset.data = JSON.stringify(data);
+            modal.style.display = 'flex';
+            
+            document.getElementById('printPreviewBtn').onclick = function() {
+                const taskId = modal.dataset.taskId;
+                const operationId = modal.dataset.operationId;
+                const dataStr = modal.dataset.data;
+                const data = JSON.parse(dataStr);
+                printLabel(taskId, operationId, data);
+                modal.style.display = 'none';
+                showNotification('🖨️ Этикетка отправлена на печать', 'success');
+            };
+            
+            document.getElementById('printPreviewCloseBtn').onclick = function() {
+                modal.style.display = 'none';
+                showNotification('💾 Выработка сохранена', 'info');
+            };
+        }
+        
+// ========================================
+//  ПЕЧАТЬ (ШАПКИ)
+// ========================================
+function printLabel(taskId) {
+    const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+    if (!taskCard) {
+        alert('❌ Задание не найдено');
+        return;
+    }
+    
+    const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+    const color = taskCard.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+    const program = taskCard.querySelector('.task-meta span:nth-child(1)')?.textContent?.replace('📄', '').trim() || '—';
+    const size = taskCard.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+    const className = taskCard.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+    const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
+    const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+    const ip = taskCard.dataset.ip || '—';
+    const isUrgent = taskCard.dataset.urgent === 'true';
+    
+    // Берём количество из поля ввода
+    const quantityInput = taskCard.querySelector('input[name="quantity"]');
+    const quantity = quantityInput ? quantityInput.value || '0' : '0';
+    
+    // Берём станок из выпадающего списка
+    const machineSelect = taskCard.querySelector('select[name="machineId"]');
+    const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
+
+    const title = modelName;
+
+    const printWindow = window.open('', '_blank', 'width=400,height=300');
+    if (!printWindow) {
+        alert('❌ Разрешите всплывающие окна для печати');
+        return;
+    }
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Этикетка Dika Knit</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                @page { size: 56mm 32mm; margin: 0; }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    width: 56mm;
+                    height: 32mm;
+                    background: white;
+                    display: flex;
+                    justify-content: center;
+                    align-items: flex-start;
+                    font-family: Arial, Helvetica, sans-serif;
+                }
+                .label {
+                    width: 56mm;
+                    height: 32mm;
+                    padding: 0.2mm 2.5mm 1mm 2.5mm;
+                    border: none;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    background: white;
+                }
+                .label .title-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0.5px;
+                }
+                .label .model {
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: #000;
+                    line-height: 1.1;
+                }
+                .label .urgent-badge {
+                    font-size: 12px;
+                    font-weight: 900;
+                    color: #f87171;
+                    white-space: nowrap;
+                    margin-left: 8px;
+                }
+                .label .quantity {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #c9a959;
+                    margin: 0px 0 0.5px 0;
+                }
+                .label .info {
+                    font-size: 10px;
+                    color: #333;
+                    line-height: 1.2;
+                }
+                .label .info span {
+                    font-weight: 600;
+                    color: #000;
+                }
+                .label .color-dot {
+                    display: inline-block;
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                    vertical-align: middle;
+                    margin-right: 2px;
+                    border: 0.5px solid #ccc;
+                }
+                .label .bottom-section {
+                    margin-top: auto;
+                    border-top: 2px solid #c9a959;
+                    padding-top: 1px;
+                    text-align: center;
+                    font-size: 9px;
+                    font-weight: 800;
+                    color: #c9a959;
+                    letter-spacing: 0.5px;
+                    text-transform: uppercase;
+                }
+                @media print {
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        width: 56mm;
+                        height: 32mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="label">
+                <div class="title-row">
+                    <div class="model">${title}</div>
+                    ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
+                </div>
+                <div class="quantity">${quantity} шт.</div>
+                <div class="info">
+                    <span class="color-dot" style="background:${color};"></span>
+                    Цвет: <span>${color}</span> &nbsp;|&nbsp; Класс: <span>${className}</span>
+                </div>
+                <div class="info">
+                    Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
+                </div>
+                <div class="info">
+                    ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
+                </div>
+                <div class="info">
+                    Вязал: <span>${fullName}</span> &nbsp;|&nbsp; <span>${date}</span>
+                </div>
+                <div class="bottom-section">Dika Knit</div>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    }, 500);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+        // ========================================
+        //  ОТМЕНА
+        // ========================================
+        function undoOperation(taskId) {
+            if (!taskId) {
+                alert('❌ ID задания не указан');
+                return;
+            }
+
+            if (!confirm('Отменить последнюю операцию для задания #' + taskId + '?')) {
+                return;
+            }
+
+            console.log('🔄 Отмена операции для задания:', taskId);
+
+            fetch('/api/operations/undo/' + taskId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('📥 Ответ сервера:', data);
+                if (data.success) {
+                    alert('✅ Операция отменена');
+                    location.reload();
+                } else {
+                    alert('❌ Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            })
+            .catch(err => {
+                console.error('❌ Ошибка запроса:', err);
+                alert('❌ Ошибка: ' + err.message);
+            });
+        }
+
+        // ========================================
+        //  ОТПРАВИТЬ АДМИНУ
+        // ========================================
+        async function sendToAdmin(taskId) {
+            if (!confirm('Отправить задание администратору?')) return;
+            
+            try {
+                const response = await fetch('/api/tasks/complete/' + taskId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Задание отправлено администратору!', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            } catch (err) {
+                alert('❌ Ошибка: ' + err.message);
+            }
+        }
+
+        // ========================================
+        //  УВЕДОМЛЕНИЯ
+        // ========================================
+        function showNotification(message, type) {
+            const colors = { success: '#4ade80', error: '#f87171', info: '#c9a959' };
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: rgba(255,255,255,0.08);
+                color: #fff;
+                padding: 14px 20px;
+                border-radius: 12px;
+                border-left: 4px solid ${colors[type] || colors.info};
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                font-size: 14px;
+                font-weight: 500;
+                animation: slideInRight 0.4s ease;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.05);
+                z-index: 9999;
+                max-width: 350px;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.4s ease';
+                setTimeout(() => notification.remove(), 400);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
