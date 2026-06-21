@@ -2238,22 +2238,6 @@ cron.schedule('0 8 * * *', async () => {
 // ========================================
 //  ЗАПУСК
 // ========================================
-// ========================================
-//  ВРЕМЕННО — НАЗНАЧИТЬ СЕБЯ АДМИНОМ
-// ========================================
-
-app.get('/make-me-admin', async (req, res) => {
-    try {
-        const user = await User.findOne({ where: { login: 'admin' } });
-        if (!user) {
-            return res.send('❌ Пользователь admin не найден');
-        }
-        await user.update({ role: 'bot_admin' });
-        res.send('✅ Админ назначен! Теперь зайдите в бота и нажмите "Настройки"');
-    } catch (err) {
-        res.send('❌ Ошибка: ' + err.message);
-    }
-});
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, async () => {
     console.log(`🚀 Dika Knit работает на http://localhost:${PORT}`);
