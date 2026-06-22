@@ -1391,59 +1391,6 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
 });
 
 // ========================================
-//  УБРАТЬ РОЛЬ (АДМИН-ПАНЕЛЬ) - НОВЫЙ БЛОК
-// ========================================
-
-app.get('/admin/remove-role', async (req, res) => {
-    try {
-        const users = await User.findAll({
-            where: { 
-                role: { [Op.ne]: null }
-            },
-            order: [['role', 'ASC'], ['fullName', 'ASC']]
-        });
-        res.render('admin/remove-role', {
-            users,
-            user: { fullName: 'Администратор', isAdmin: true }
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Ошибка сервера');
-    }
-});
-
-app.post('/admin/remove-role/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const user = await User.findByPk(id);
-        if (!user) {
-            return res.status(404).send('Пользователь не найден');
-        }
-        
-        await user.update({ 
-            role: null,
-            isAdmin: false,
-            isActiveForNotifications: false
-        });
-        
-        if (user.telegramId && bot) {
-            try {
-                await bot.telegram.sendMessage(
-                    user.telegramId,
-                    `🔔 Ваша роль была удалена администратором.`
-                );
-            } catch (err) {}
-        }
-        
-        console.log(`🗑️ Роль удалена у ${user.fullName} (${user.login})`);
-        res.redirect('/admin/remove-role');
-    } catch (err) {
-        console.error('❌ Ошибка удаления роли:', err);
-        res.status(500).send('Ошибка при удалении роли');
-    }
-});
-
-// ========================================
 //  ТЕЛЕГРАМ БОТ (telegraf) С УВЕДОМЛЕНИЯМИ
 // ========================================
 
