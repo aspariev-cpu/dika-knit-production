@@ -24,7 +24,11 @@ const User = sequelize.define('User', {
         type: DataTypes.ENUM('bot_admin', 'admin', 'boss', 'master', 'worker'), 
         defaultValue: 'worker' 
     },
-    lastActiveAt: { type: DataTypes.DATE, allowNull: true }  // ✅ Добавлено
+    lastActiveAt: { type: DataTypes.DATE, allowNull: true },
+    isActiveForNotifications: {   // 👈 НОВОЕ ПОЛЕ
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    }
 });
 
 // ========================================
