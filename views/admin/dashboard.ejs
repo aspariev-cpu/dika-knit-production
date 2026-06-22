@@ -692,36 +692,35 @@
         }
 
         function updateCoatParts(model) {
-            const coatPartsBlock = document.getElementById('coatPartsBlock');
-            const coatPartsFields = document.getElementById('coatPartsFields');
-            const quantityBlock = document.getElementById('quantityBlock');
-            const planQuantity = document.getElementById('planQuantity');
-            
-            if (model && model.isCoat && model.parts && model.parts.length > 0) {
-                coatPartsBlock.style.display = 'block';
-                quantityBlock.style.display = 'none';
-                planQuantity.removeAttribute('required');
-                
-                coatPartsFields.innerHTML = '';
-                
-                model.parts.forEach(part => {
-    const div = document.createElement('div');
-    div.className = 'coat-part-field';
-    div.style.cssText = 'display:flex; align-items:center; gap:10px;';
-    div.innerHTML = `
-        <label style="min-width:80px; color:#fff; font-weight:500;">${part.partName}:</label>
-        <input type="number" name="part_${part.id}" placeholder="шт." min="0" style="width:100px; padding:6px 10px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:8px; color:#fff; font-size:14px;">
-    `;
-    coatPartsFields.appendChild(div);
-});
-            } else {
-                coatPartsBlock.style.display = 'none';
-                quantityBlock.style.display = 'block';
-                planQuantity.setAttribute('required', 'required');
-            }
-        }
-
-        loadData();
+    const coatPartsBlock = document.getElementById('coatPartsBlock');
+    const coatPartsFields = document.getElementById('coatPartsFields');
+    const quantityBlock = document.getElementById('quantityBlock');
+    const planQuantity = document.getElementById('planQuantity');
+    
+    if (model && model.isCoat && model.parts && model.parts.length > 0) {
+        coatPartsBlock.style.display = 'block';
+        quantityBlock.style.display = 'none';
+        planQuantity.removeAttribute('required');
+        
+        coatPartsFields.innerHTML = '';
+        
+        // 🔥 ИЗМЕНЕНИЕ ЗДЕСЬ: добавляем index
+        model.parts.forEach((part, index) => {
+            const div = document.createElement('div');
+            div.className = 'coat-part-field';
+            div.style.cssText = 'display:flex; align-items:center; gap:10px;';
+            div.innerHTML = `
+                <label style="min-width:80px; color:#fff; font-weight:500;">${part.partName}:</label>
+                <input type="number" name="part_${index}" placeholder="шт." min="0" style="width:100px; padding:6px 10px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:8px; color:#fff; font-size:14px;">
+            `;
+            coatPartsFields.appendChild(div);
+        });
+    } else {
+        coatPartsBlock.style.display = 'none';
+        quantityBlock.style.display = 'block';
+        planQuantity.setAttribute('required', 'required');
+    }
+}
 
         // ========================================
         //  ПОИСК ПО ТАБЛИЦЕ
