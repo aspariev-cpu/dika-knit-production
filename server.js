@@ -1157,7 +1157,37 @@ app.post('/api/operations', async (req, res) => {
         }
 
         // ========================================
-        // 5. ОТВЕТ
+        // 5. КОСТЫЛЬ: ПРИНУДИТЕЛЬНЫЙ ПЕРЕСЧЁТ ВСЕХ КОФТ (ТОЛЬКО ДЛЯ ДЕТАЛЕЙ)
+        // ========================================
+        if (task.isPart && task.parentTaskId) {
+            try {
+                console.log('🔄 ЗАПУЩЕН КОСТЫЛЬ: принудительный пересчёт всех кофт');
+                const allCoats = await Task.findAll({
+                    where: { isCoat: true, status: ['pending', 'in_progress'] }
+                });
+                for (const coat of allCoats) {
+                    const parts = await Task.findAll({
+                        where: { parentTaskId: coat.id }
+                    });
+                    let totalDoneCoat = 0;
+                    let totalPlanCoat = 0;
+                    for (const part of parts) {
+                        const partOps = await Operation.findAll({ where: { taskId: part.id } });
+                        const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
+                        totalDoneCoat += Math.min(partDone, part.planQuantity);
+                        totalPlanCoat += part.planQuantity;
+                        await part.update({ doneQuantity: partDone });
+                    }
+                    await coat.update({ doneQuantity: totalDoneCoat });
+                    console.log(`🔄 КОСТЫЛЬ: Обновлена кофта ${coat.id}: ${totalDoneCoat}/${totalPlanCoat}`);
+                }
+            } catch (err) {
+                console.error('❌ Ошибка в костыле:', err);
+            }
+        }
+
+        // ========================================
+        // 6. ОТВЕТ
         // ========================================
         res.json({
             success: true,
@@ -1173,38 +1203,11 @@ app.post('/api/operations', async (req, res) => {
         });
         
     } catch (err) {
-        console.error('❌ Ошибк при сохранении выработки:', err);
+        console.error('❌ Ошибка при сохранении выработки:', err);
         res.status(500).json({ error: 'Ошибка при сохранении: ' + err.message });
     }
 });
-// ========================================
-// 6. КОСТЫЛЬ: ПРИНУДИТЕЛЬНЫЙ ПЕРЕСЧЁТ ВСЕХ КОФТ
-// ========================================
-if (task.isPart && task.parentTaskId) {
-    try {
-        const allCoats = await Task.findAll({
-            where: { isCoat: true, status: ['pending', 'in_progress'] }
-        });
-        for (const coat of allCoats) {
-            const parts = await Task.findAll({
-                where: { parentTaskId: coat.id }
-            });
-            let totalDone = 0;
-            let totalPlan = 0;
-            for (const part of parts) {
-                const partOps = await Operation.findAll({ where: { taskId: part.id } });
-                const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
-                totalDone += Math.min(partDone, part.planQuantity);
-                totalPlan += part.planQuantity;
-                await part.update({ doneQuantity: partDone });
-            }
-            await coat.update({ doneQuantity: totalDone });
-            console.log(`🔄 КОСТЫЛЬ: Обновлена кофта ${coat.id}: ${totalDone}/${totalPlan}`);
-        }
-    } catch (err) {
-        console.error('❌ Ошибка в костыле:', err);
-    }
-}
+
 // ========================================
 //  API: ОТПРАВИТЬ АДМИНУ
 // ========================================
