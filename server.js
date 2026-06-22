@@ -36,6 +36,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('io', io);
 app.use('/', profileRoutes);
+
 // ========================================
 //  MIDDLEWARE
 // ========================================
@@ -104,19 +105,13 @@ app.get('/logout', (req, res) => {
 app.get('/admin', async (req, res) => {
     try {
         const tasks = await Task.findAll({
-            where: { isPart: false },
+            where: { 
+                isPart: false  // временно, пока не удалим поле
+            },
             include: [
                 { model: Model },
                 { model: Color },
-                { model: Operation, as: 'operations' },
-                { 
-                    model: Task, 
-                    as: 'parts',
-                    include: [
-                        { model: Model },
-                        { model: Operation, as: 'operations' }
-                    ]
-                }
+                { model: Operation, as: 'operations' }
             ],
             order: [['createdAt', 'DESC']]
         });
@@ -455,10 +450,6 @@ app.post('/api/workers/delete/:id', async (req, res) => {
 app.post('/api/tasks/delete/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const task = await Task.findByPk(id);
-        if (task && task.isCoat) {
-            await Task.destroy({ where: { parentTaskId: id } });
-        }
         await Task.destroy({ where: { id } });
         res.redirect('/admin');
     } catch (err) {
@@ -474,14 +465,13 @@ app.post('/api/tasks/delete/:id', async (req, res) => {
 app.post('/api/tasks/duplicate/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const original = await Task.findByPk(id, {
-            include: [{ model: Task, as: 'parts' }]
-        });
+        const original = await Task.findByPk(id);
         if (!original) {
             return res.status(404).send('Задание не найдено');
         }
 
-        const newParent = await Task.create({
+        // Копируем задачу (для кофт копируются и детали в JSON)
+        const newTask = await Task.create({
             modelId: original.modelId,
             colorId: original.colorId,
             planQuantity: original.planQuantity,
@@ -489,27 +479,9 @@ app.post('/api/tasks/duplicate/:id', async (req, res) => {
             status: 'pending',
             ip: original.ip,
             isCoat: original.isCoat,
-            isPart: false,
-            partName: null,
-            parentTaskId: null
+            parts: original.parts ? original.parts.map(p => ({ ...p, done: 0 })) : [],
+            doneQuantity: 0
         });
-
-        if (original.isCoat && original.parts) {
-            for (const part of original.parts) {
-                await Task.create({
-                    modelId: part.modelId,
-                    colorId: part.colorId,
-                    planQuantity: part.planQuantity,
-                    isUrgent: part.isUrgent,
-                    status: 'pending',
-                    ip: part.ip,
-                    isCoat: false,
-                    isPart: true,
-                    partName: part.partName || part.Model?.name || 'Деталь',
-                    parentTaskId: newParent.id
-                });
-            }
-        }
 
         res.redirect('/admin');
     } catch (err) {
@@ -891,16 +863,7 @@ app.get('/worker', async (req, res) => {
             include: [
                 { model: Model },
                 { model: Color },
-                { model: Operation, as: 'operations' },
-                { 
-                    model: Task, 
-                    as: 'parts',
-                    include: [
-                        { model: Model },
-                        { model: Color },
-                        { model: Operation, as: 'operations' }
-                    ]
-                }
+                { model: Operation, as: 'operations' }
             ],
             order: [
                 ['isUrgent', 'DESC'],
@@ -914,7 +877,7 @@ app.get('/worker', async (req, res) => {
         tasks.forEach(task => {
             if (task.isCoat) {
                 coatTasks.push(task);
-            } else if (!task.isPart) {
+            } else {
                 shapkiTasks.push(task);
             }
         });
@@ -946,7 +909,7 @@ app.get('/api/colors', async (req, res) => {
 });
 
 // ========================================
-//  API: СОЗДАНИЕ ЗАДАНИЯ
+//  API: СОЗДАНИЕ ЗАДАНИЯ (НОВАЯ ЛОГИКА)
 // ========================================
 
 app.post('/api/tasks', async (req, res) => {
@@ -959,22 +922,31 @@ app.post('/api/tasks', async (req, res) => {
             return res.status(404).json({ error: 'Модель не найдена' });
         }
 
+        // ========================================
+        // НОВАЯ ЛОГИКА ДЛЯ КОФТ (С JSON)
+        // ========================================
         if (model.isCoat && model.parts && model.parts.length > 0) {
-            const partsQuantities = {};
+            // Собираем данные о деталях из формы
+            const partsData = [];
             let totalPlan = 0;
             
-            for (const part of model.parts) {
-                const quantity = parseInt(req.body[`part_${part.id}`]) || 0;
+            model.parts.forEach((part, index) => {
+                const quantity = parseInt(req.body[`part_${index}`]) || 0;
                 if (quantity > 0) {
-                    partsQuantities[part.id] = quantity;
+                    partsData.push({
+                        name: part.partName,
+                        plan: quantity,
+                        done: 0
+                    });
                     totalPlan += quantity;
                 }
-            }
+            });
             
-            if (Object.keys(partsQuantities).length === 0) {
+            if (partsData.length === 0) {
                 return res.status(400).json({ error: 'Укажите количество хотя бы для одной детали' });
             }
 
+            // Создаём одну задачу-кофту с деталями в JSON
             const coat = await Task.create({
                 modelId: model.id,
                 colorId: colorId,
@@ -983,32 +955,12 @@ app.post('/api/tasks', async (req, res) => {
                 status: 'pending',
                 ip: ip || null,
                 isCoat: true,
-                isPart: false,
-                partName: null,
-                parentTaskId: null
+                parts: partsData,
+                doneQuantity: 0
             });
-
-            for (const part of model.parts) {
-                const quantity = parseInt(req.body[`part_${part.id}`]) || 0;
-                if (quantity > 0) {
-                    await Task.create({
-                        modelId: model.id,
-                        colorId: colorId,
-                        planQuantity: quantity,
-                        isUrgent: isUrgent === 'on',
-                        status: 'pending',
-                        ip: ip || null,
-                        isCoat: false,
-                        isPart: true,
-                        partName: part.partName,
-                        parentTaskId: coat.id
-                    });
-                }
-            }
 
             io.emit('newTask', coat);
             
-            // 👇 ОТПРАВКА УВЕДОМЛЕНИЙ (ДОБАВЛЕНО)
             try {
                 await sendNotificationToActiveWorkers(coat, model, null, totalPlan, ip);
                 console.log('📨 Уведомления отправлены активным вязальщикам');
@@ -1016,8 +968,13 @@ app.post('/api/tasks', async (req, res) => {
                 console.error('❌ Ошибка отправки уведомлений:', err);
             }
             
-            res.redirect('/admin');
-        } else {
+            return res.redirect('/admin');
+        }
+        
+        // ========================================
+        // ЛОГИКА ДЛЯ ШАПОК (ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ)
+        // ========================================
+        else {
             const planQuantity = parseInt(req.body.planQuantity);
             if (!planQuantity || planQuantity <= 0) {
                 return res.status(400).json({ error: 'Укажите количество' });
@@ -1031,13 +988,10 @@ app.post('/api/tasks', async (req, res) => {
                 status: 'pending',
                 ip: ip || null,
                 isCoat: false,
-                isPart: false,
-                partName: null,
-                parentTaskId: null
+                doneQuantity: 0
             });
             io.emit('newTask', task);
             
-            // 👇 ОТПРАВКА УВЕДОМЛЕНИЙ (ДОБАВЛЕНО)
             try {
                 await sendNotificationToActiveWorkers(task, model, null, planQuantity, ip);
                 console.log('📨 Уведомления отправлены активным вязальщикам');
@@ -1054,12 +1008,12 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 // ========================================
-//  API: ВВОД ВЫРАБОТКИ
+//  API: ВВОД ВЫРАБОТКИ (НОВАЯ ЛОГИКА)
 // ========================================
 
 app.post('/api/operations', async (req, res) => {
-    const { taskId, machineId, quantity } = req.body;
-    console.log('📥 Получен запрос на сохранение выработки:', { taskId, machineId, quantity });
+    const { taskId, machineId, quantity, partName } = req.body;
+    console.log('📥 Получен запрос на сохранение выработки:', { taskId, machineId, quantity, partName });
     
     try {
         const task = await Task.findByPk(taskId, {
@@ -1074,7 +1028,7 @@ app.post('/api/operations', async (req, res) => {
         }
 
         // ========================================
-        // 1. СОЗДАЁМ ОПЕРАЦИЮ
+        // 1. СОЗДАЁМ ОПЕРАЦИЮ (ДЛЯ СТАТИСТИКИ)
         // ========================================
         const operation = await Operation.create({
             taskId: parseInt(taskId),
@@ -1083,124 +1037,91 @@ app.post('/api/operations', async (req, res) => {
             quantity: parseInt(quantity),
             colorName: task.Color ? task.Color.name : null,
             modelName: task.Model ? task.Model.name : null,
-            partName: task.partName || null
+            partName: partName || null
         });
 
         // ========================================
-        // 2. СЧИТАЕМ ОБЩЕЕ КОЛИЧЕСТВО ДЛЯ ЭТОЙ ДЕТАЛИ/ЗАДАНИЯ
+        // 2. ОБНОВЛЕНИЕ ПРОГРЕССА ДЛЯ ШАПКИ
         // ========================================
-        const ops = await Operation.findAll({ where: { taskId } });
-        const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
-        const percent = task.planQuantity > 0 ? Math.min((totalDone / task.planQuantity) * 100, 100) : 0;
-
-        // ========================================
-        // 3. ОБНОВЛЯЕМ doneQuantity У ТЕКУЩЕГО ЗАДАНИЯ
-        // ========================================
-        await task.update({ doneQuantity: totalDone });
-        console.log(`✅ Обновлён doneQuantity для задания ${taskId}: ${totalDone}/${task.planQuantity}`);
-
-        // ========================================
-        // 4. ЕСЛИ ЭТО ДЕТАЛЬ КОФТЫ - ОБНОВЛЯЕМ РОДИТЕЛЯ
-        // ========================================
-        let parentProgress = null;
-        
-        if (task.isPart && task.parentTaskId) {
-            console.log(`🔄 Это деталь кофты! parentTaskId: ${task.parentTaskId}`);
+        if (!task.isCoat) {
+            const ops = await Operation.findAll({ where: { taskId } });
+            const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
+            const percent = task.planQuantity > 0 ? Math.min((totalDone / task.planQuantity) * 100, 100) : 0;
+            await task.update({ doneQuantity: totalDone });
             
-            // Находим родительскую кофту со всеми деталями
-            const parent = await Task.findByPk(task.parentTaskId, {
-                include: [{ model: Task, as: 'parts' }]
+            console.log(`✅ Обновлён doneQuantity для шапки ${taskId}: ${totalDone}/${task.planQuantity}`);
+            
+            return res.json({
+                success: true,
+                operationId: operation.id,
+                quantity: quantity,
+                totalDone: totalDone,
+                percent: percent,
+                planQuantity: task.planQuantity,
+                machineId: machineId,
+                partName: partName,
+                parentProgress: null
+            });
+        }
+
+        // ========================================
+        // 3. НОВАЯ ЛОГИКА ДЛЯ КОФТЫ (ОБНОВЛЕНИЕ JSON)
+        // ========================================
+        if (task.isCoat && task.parts && task.parts.length > 0) {
+            if (!partName) {
+                console.log('❌ Не передано имя детали для кофты');
+                return res.status(400).json({ error: 'Не указана деталь' });
+            }
+            
+            // Находим деталь в массиве parts
+            const partIndex = task.parts.findIndex(p => p.name === partName);
+            
+            if (partIndex === -1) {
+                console.log(`❌ Деталь "${partName}" не найдена в кофте ${task.id}`);
+                return res.status(404).json({ error: `Деталь "${partName}" не найдена` });
+            }
+            
+            // Обновляем done у конкретной детали
+            task.parts[partIndex].done = (task.parts[partIndex].done || 0) + parseInt(quantity);
+            
+            // Пересчитываем общий прогресс
+            let totalDone = 0;
+            let totalPlan = 0;
+            task.parts.forEach(p => {
+                totalDone += Math.min(p.done, p.plan);
+                totalPlan += p.plan;
             });
             
-            if (parent) {
-                console.log(`👨‍👧‍👦 Найдена родительская кофта: ID ${parent.id}`);
-                
-                let totalParentDone = 0;
-                let totalParentPlan = 0;
-                
-                // Перебираем все детали кофты
-                for (const part of parent.parts) {
-                    // Считаем сумму операций для каждой детали
-                    const partOps = await Operation.findAll({ where: { taskId: part.id } });
-                    const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
-                    
-                    // Добавляем к общему прогрессу (не больше плана)
-                    const doneForParent = Math.min(partDone, part.planQuantity);
-                    totalParentDone += doneForParent;
-                    totalParentPlan += part.planQuantity;
-                    
-                    // Обновляем doneQuantity у детали
-                    await part.update({ doneQuantity: partDone });
-                    console.log(`   Деталь ${part.id} (${part.partName}): ${partDone}/${part.planQuantity}`);
+            // Сохраняем изменения
+            await task.update({ 
+                doneQuantity: totalDone,
+                parts: task.parts 
+            });
+            
+            const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
+            
+            console.log(`✅ Обновлена кофта ${task.id}: ${totalDone}/${totalPlan} (деталь: ${partName})`);
+            
+            return res.json({
+                success: true,
+                operationId: operation.id,
+                quantity: quantity,
+                totalDone: totalDone,
+                percent: percent,
+                planQuantity: totalPlan,
+                machineId: machineId,
+                partName: partName,
+                parentProgress: {
+                    coatId: task.id,
+                    totalDone: totalDone,
+                    totalPlan: totalPlan,
+                    percent: percent
                 }
-                
-                console.log(`📊 Итог по кофте ${parent.id}: ${totalParentDone}/${totalParentPlan}`);
-                
-                // Обновляем doneQuantity у родительской кофты
-                await parent.update({ doneQuantity: totalParentDone });
-                
-                // Перезагружаем данные из БД
-                await parent.reload();
-                console.log(`✅ Обновлён doneQuantity у кофты ${parent.id}: ${parent.doneQuantity}`);
-                
-                const parentPercent = totalParentPlan > 0 ? Math.min((totalParentDone / totalParentPlan) * 100, 100) : 0;
-                
-                parentProgress = {
-                    coatId: parent.id,
-                    totalDone: totalParentDone,
-                    totalPlan: totalParentPlan,
-                    percent: parentPercent
-                };
-            } else {
-                console.log(`❌ Родительская кофта с ID ${task.parentTaskId} не найдена!`);
-            }
+            });
         }
 
-        // ========================================
-        // 5. КОСТЫЛЬ: ПРИНУДИТЕЛЬНЫЙ ПЕРЕСЧЁТ ВСЕХ КОФТ (ТОЛЬКО ДЛЯ ДЕТАЛЕЙ)
-        // ========================================
-        if (task.isPart && task.parentTaskId) {
-            try {
-                console.log('🔄 ЗАПУЩЕН КОСТЫЛЬ: принудительный пересчёт всех кофт');
-                const allCoats = await Task.findAll({
-                    where: { isCoat: true, status: ['pending', 'in_progress'] }
-                });
-                for (const coat of allCoats) {
-                    const parts = await Task.findAll({
-                        where: { parentTaskId: coat.id }
-                    });
-                    let totalDoneCoat = 0;
-                    let totalPlanCoat = 0;
-                    for (const part of parts) {
-                        const partOps = await Operation.findAll({ where: { taskId: part.id } });
-                        const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
-                        totalDoneCoat += Math.min(partDone, part.planQuantity);
-                        totalPlanCoat += part.planQuantity;
-                        await part.update({ doneQuantity: partDone });
-                    }
-                    await coat.update({ doneQuantity: totalDoneCoat });
-                    console.log(`🔄 КОСТЫЛЬ: Обновлена кофта ${coat.id}: ${totalDoneCoat}/${totalPlanCoat}`);
-                }
-            } catch (err) {
-                console.error('❌ Ошибка в костыле:', err);
-            }
-        }
-
-        // ========================================
-        // 6. ОТВЕТ
-        // ========================================
-        res.json({
-            success: true,
-            operationId: operation.id,
-            quantity: quantity,
-            totalDone: totalDone,
-            percent: percent,
-            planQuantity: task.planQuantity,
-            machineId: machineId,
-            isPart: task.isPart,
-            partName: task.partName,
-            parentProgress: parentProgress
-        });
+        // Если ничего не подошло
+        return res.status(400).json({ error: 'Неизвестный тип задания' });
         
     } catch (err) {
         console.error('❌ Ошибка при сохранении выработки:', err);
@@ -1220,11 +1141,26 @@ app.post('/api/tasks/complete/:taskId', async (req, res) => {
             return res.status(404).json({ error: 'Задание не найдено' });
         }
 
-        const ops = await Operation.findAll({ where: { taskId } });
-        const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
-        
-        if (totalDone < task.planQuantity) {
-            return res.status(400).json({ error: 'Задание не выполнено!' });
+        // Для кофт проверяем, что все детали готовы
+        if (task.isCoat && task.parts && task.parts.length > 0) {
+            let allDone = true;
+            for (const part of task.parts) {
+                if (part.done < part.plan) {
+                    allDone = false;
+                    break;
+                }
+            }
+            if (!allDone) {
+                return res.status(400).json({ error: 'Не все детали кофты выполнены!' });
+            }
+        } else {
+            // Для шапок проверяем количество
+            const ops = await Operation.findAll({ where: { taskId } });
+            const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
+            
+            if (totalDone < task.planQuantity) {
+                return res.status(400).json({ error: 'Задание не выполнено!' });
+            }
         }
 
         await task.update({ status: 'completed' });
@@ -1273,10 +1209,24 @@ app.post('/api/operations/undo/:taskId', async (req, res) => {
         // Обновляем doneQuantity у задания
         const task = await Task.findByPk(taskId);
         if (task) {
-            const ops = await Operation.findAll({ where: { taskId } });
-            const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
-            await task.update({ doneQuantity: totalDone });
-            console.log('✅ Обновлён doneQuantity:', totalDone);
+            // Для кофт с JSON нужно обновить и детали
+            if (task.isCoat && task.parts && task.parts.length > 0) {
+                // TODO: реализовать отмену для кофт (уменьшить done у детали)
+                // Пока просто пересчитываем общий прогресс
+                let totalDone = 0;
+                task.parts.forEach(p => {
+                    totalDone += Math.min(p.done, p.plan);
+                });
+                await task.update({ 
+                    doneQuantity: totalDone,
+                    parts: task.parts 
+                });
+            } else {
+                const ops = await Operation.findAll({ where: { taskId } });
+                const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
+                await task.update({ doneQuantity: totalDone });
+            }
+            console.log('✅ Обновлён doneQuantity:', task.doneQuantity);
         }
         
         console.log('✅ ОТМЕНА УСПЕШНО ЗАВЕРШЕНА');
@@ -1301,15 +1251,7 @@ app.get('/api/tasks/:taskId/edit-data', async (req, res) => {
             include: [
                 { model: Model },
                 { model: Color },
-                { model: Operation, as: 'operations' },
-                { 
-                    model: Task, 
-                    as: 'parts',
-                    include: [
-                        { model: Model },
-                        { model: Operation, as: 'operations' }
-                    ]
-                }
+                { model: Operation, as: 'operations' }
             ]
         });
         
@@ -1320,14 +1262,13 @@ app.get('/api/tasks/:taskId/edit-data', async (req, res) => {
         let totalDone = 0;
         let totalPlan = task.planQuantity || 0;
         
+        // Для кофт с JSON
         if (task.isCoat && task.parts && task.parts.length > 0) {
             totalPlan = 0;
             totalDone = 0;
             for (const part of task.parts) {
-                const ops = part.operations || [];
-                const done = ops.reduce((sum, op) => sum + op.quantity, 0);
-                totalDone += Math.min(done, part.planQuantity);
-                totalPlan += part.planQuantity;
+                totalDone += Math.min(part.done || 0, part.plan);
+                totalPlan += part.plan;
             }
         } else {
             const ops = task.operations || [];
@@ -1348,7 +1289,7 @@ app.get('/api/tasks/:taskId/edit-data', async (req, res) => {
 });
 
 // ========================================
-//  API: СОХРАНИТЬ ИЗМЕНЕНИЯ ЗАДАНИЯ (С ЛОГАМИ)
+//  API: СОХРАНИТЬ ИЗМЕНЕНИЯ ЗАДАНИЯ
 // ========================================
 
 app.post('/api/tasks/edit/:id', async (req, res) => {
@@ -1361,11 +1302,7 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
     console.log('📦 Полученные данные:', { quantity, doneQuantity, status, parts });
     
     try {
-        const task = await Task.findByPk(id, {
-            include: [
-                { model: Task, as: 'parts' }
-            ]
-        });
+        const task = await Task.findByPk(id);
         
         if (!task) {
             console.log('❌ Задание не найдено!');
@@ -1383,40 +1320,46 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
             await task.update({ status: status });
         }
         
+        // ========================================
+        // НОВАЯ ЛОГИКА ДЛЯ КОФТ (С JSON)
+        // ========================================
         if (task.isCoat && task.parts && task.parts.length > 0) {
-            console.log('🧥 ЭТО КОФТА, деталей:', task.parts.length);
-            let totalPlan = 0;
-            let totalDone = 0;
+            console.log('🧥 ЭТО КОФТА (JSON), деталей:', task.parts.length);
             
-            for (const part of task.parts) {
-                const newPlan = parseInt(parts[`part_${part.id}_plan`]) || 0;
-                const newDone = parseInt(parts[`part_${part.id}_done`]) || 0;
+            // Обновляем план и факт для каждой детали
+            for (let i = 0; i < task.parts.length; i++) {
+                const part = task.parts[i];
+                const newPlan = parseInt(parts[`part_${i}_plan`]) || 0;
+                const newDone = parseInt(parts[`part_${i}_done`]) || 0;
                 
-                console.log(`   Деталь ${part.partName || part.id}:`);
-                console.log(`      новый план: ${newPlan}, старый: ${part.planQuantity}`);
-                console.log(`      новое связано: ${newDone}, старое: ${part.doneQuantity || 0}`);
+                console.log(`   Деталь ${part.name}:`);
+                console.log(`      новый план: ${newPlan}, старый: ${part.plan}`);
+                console.log(`      новое связано: ${newDone}, старое: ${part.done}`);
                 
-                if (newPlan >= 0) {
-                    await part.update({ planQuantity: newPlan });
-                    totalPlan += newPlan;
-                }
-                
-                if (newDone >= 0) {
-                    await part.update({ doneQuantity: newDone });
-                    totalDone += newDone;
-                }
+                part.plan = newPlan;
+                part.done = newDone;
             }
             
-            console.log('📊 Итог по кофте:');
-            console.log('   totalPlan:', totalPlan);
-            console.log('   totalDone:', totalDone);
+            // Пересчитываем общий прогресс
+            let totalPlan = 0;
+            let totalDone = 0;
+            task.parts.forEach(p => {
+                totalPlan += p.plan;
+                totalDone += Math.min(p.done, p.plan);
+            });
             
             await task.update({ 
                 planQuantity: totalPlan,
-                doneQuantity: totalDone
+                doneQuantity: totalDone,
+                parts: task.parts 
             });
             
-        } else {
+            console.log(`📊 Итог по кофте: ${totalDone}/${totalPlan}`);
+        }
+        // ========================================
+        // ЛОГИКА ДЛЯ ШАПКИ
+        // ========================================
+        else {
             console.log('🧢 ЭТО ШАПКА');
             console.log('   Новый план:', quantity, 'старый:', task.planQuantity);
             console.log('   Новое связано:', doneQuantity, 'старое:', task.doneQuantity || 0);
@@ -1800,7 +1743,7 @@ admin:admin123
     bot.hears('📋 Мои задания', async (ctx) => {
         try {
             const tasks = await Task.findAll({
-                where: { status: ['pending', 'in_progress'], isPart: false },
+                where: { status: ['pending', 'in_progress'], isCoat: false },
                 include: [
                     { model: Model },
                     { model: Color },
