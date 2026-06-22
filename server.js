@@ -1007,6 +1007,15 @@ app.post('/api/tasks', async (req, res) => {
             }
 
             io.emit('newTask', coat);
+            
+            // 👇 ОТПРАВКА УВЕДОМЛЕНИЙ (ДОБАВЛЕНО)
+            try {
+                await sendNotificationToActiveWorkers(coat, model, null, totalPlan, ip);
+                console.log('📨 Уведомления отправлены активным вязальщикам');
+            } catch (err) {
+                console.error('❌ Ошибка отправки уведомлений:', err);
+            }
+            
             res.redirect('/admin');
         } else {
             const planQuantity = parseInt(req.body.planQuantity);
@@ -1027,6 +1036,15 @@ app.post('/api/tasks', async (req, res) => {
                 parentTaskId: null
             });
             io.emit('newTask', task);
+            
+            // 👇 ОТПРАВКА УВЕДОМЛЕНИЙ (ДОБАВЛЕНО)
+            try {
+                await sendNotificationToActiveWorkers(task, model, null, planQuantity, ip);
+                console.log('📨 Уведомления отправлены активным вязальщикам');
+            } catch (err) {
+                console.error('❌ Ошибка отправки уведомлений:', err);
+            }
+            
             res.redirect('/admin');
         }
     } catch (err) {
@@ -1371,12 +1389,65 @@ app.post('/api/tasks/edit/:id', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
 // ========================================
-//  ТЕЛЕГРАМ БОТ (telegraf) ФИНАЛЬНАЯ ВЕРСИЯ
+//  УБРАТЬ РОЛЬ (АДМИН-ПАНЕЛЬ) - НОВЫЙ БЛОК
+// ========================================
+
+app.get('/admin/remove-role', async (req, res) => {
+    try {
+        const users = await User.findAll({
+            where: { 
+                role: { [Op.ne]: null }
+            },
+            order: [['role', 'ASC'], ['fullName', 'ASC']]
+        });
+        res.render('admin/remove-role', {
+            users,
+            user: { fullName: 'Администратор', isAdmin: true }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
+app.post('/admin/remove-role/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).send('Пользователь не найден');
+        }
+        
+        await user.update({ 
+            role: null,
+            isAdmin: false,
+            isActiveForNotifications: false
+        });
+        
+        if (user.telegramId && bot) {
+            try {
+                await bot.telegram.sendMessage(
+                    user.telegramId,
+                    `🔔 Ваша роль была удалена администратором.`
+                );
+            } catch (err) {}
+        }
+        
+        console.log(`🗑️ Роль удалена у ${user.fullName} (${user.login})`);
+        res.redirect('/admin/remove-role');
+    } catch (err) {
+        console.error('❌ Ошибка удаления роли:', err);
+        res.status(500).send('Ошибка при удалении роли');
+    }
+});
+
+// ========================================
+//  ТЕЛЕГРАМ БОТ (telegraf) С УВЕДОМЛЕНИЯМИ
 // ========================================
 
 const { Telegraf } = require('telegraf');
-const cron = require('node-cron');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 let bot = null;
@@ -1389,21 +1460,20 @@ if (TELEGRAM_BOT_TOKEN) {
 }
 
 // ========================================
-//  КЛАВИАТУРЫ
+//  КЛАВИАТУРЫ (ОБНОВЛЕНЫ)
 // ========================================
 
 const mainKeyboard = {
     reply_markup: {
         keyboard: [
             ['📋 Мои задания', '📊 Статистика'],
-            ['🔗 Привязать аккаунт', '🔧 Настройки'],
-            ['🚪 Выйти']
+            ['🔗 Привязать аккаунт', '✅ На работу', '⏹️ Закончил работу'],
+            ['🔧 Настройки', '🚪 Выйти']
         ],
         resize_keyboard: true
     }
 };
 
-// ✅ ДОБАВЬ ЭТО
 const settingsKeyboard = {
     reply_markup: {
         keyboard: [
@@ -1417,7 +1487,7 @@ const settingsKeyboard = {
 };
 
 // ========================================
-//  ОТПРАВКА СООБЩЕНИЯ С КНОПКОЙ "ЗАКРЫТЬ"
+//  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ========================================
 
 async function sendDismissibleMessage(ctx, text, options = {}) {
@@ -1430,14 +1500,12 @@ async function sendDismissibleMessage(ctx, text, options = {}) {
     };
     
     try {
-        // Пробуем с Markdown
         await ctx.reply(text, {
             parse_mode: 'Markdown',
             ...dismissKeyboard,
             ...options
         });
     } catch (err) {
-        // Если Markdown не работает — отправляем без форматирования
         console.log('⚠️ Проблема с Markdown, отправка без форматирования');
         try {
             await ctx.reply(text, {
@@ -1454,109 +1522,96 @@ async function sendDismissibleMessage(ctx, text, options = {}) {
 //  УДАЛЕНИЕ КОМАНД И ТЕКСТА КНОПОК
 // ========================================
 
-bot.use(async (ctx, next) => {
-    const text = ctx.message?.text;
-    
-    const buttonTexts = [
-        '📋 Мои задания',
-        '📊 Статистика',
-        '🔗 Привязать аккаунт',
-        '🔧 Настройки',
-        '🚪 Выйти',
-        '👥 Все пользователи',
-        '👤 Назначить роль',
-        '📢 Отправить уведомление',
-        '🔙 В главное меню'
-    ];
-    
-    const isCommand = text?.startsWith('/');
-    const isButtonText = buttonTexts.includes(text);
-    
-    await next();
-    
-    // Пытаемся удалить, но если не получается — игнорируем
-    if ((isCommand || isButtonText) && ctx.message) {
-        try {
-            await ctx.deleteMessage().catch(() => {});
-        } catch (err) {
-            // Игнорируем ошибку
+if (bot) {
+    bot.use(async (ctx, next) => {
+        const text = ctx.message?.text;
+        
+        const buttonTexts = [
+            '📋 Мои задания',
+            '📊 Статистика',
+            '🔗 Привязать аккаунт',
+            '✅ На работу',
+            '⏹️ Закончил работу',
+            '🔧 Настройки',
+            '🚪 Выйти',
+            '👥 Все пользователи',
+            '👤 Назначить роль',
+            '📢 Отправить уведомление',
+            '🔙 В главное меню'
+        ];
+        
+        const isCommand = text?.startsWith('/');
+        const isButtonText = buttonTexts.includes(text);
+        
+        await next();
+        
+        if ((isCommand || isButtonText) && ctx.message) {
+            try {
+                await ctx.deleteMessage().catch(() => {});
+            } catch (err) {}
         }
-    }
-});
+    });
+}
 
 // ========================================
-//  ОБРАБОТЧИКИ КОМАНД И КНОПОК
+//  НАСТРОЙКА WEBHOOK
 // ========================================
 
 if (bot) {
-    // Настройка webhook
     app.use(bot.webhookCallback(`/bot${TELEGRAM_BOT_TOKEN}`));
-    app.post(`/bot${TELEGRAM_BOT_TOKEN}`, (req, res) => {
-        // обрабатывается через webhookCallback
-    });
+    app.post(`/bot${TELEGRAM_BOT_TOKEN}`, (req, res) => {});
+}
 
-    // ========================================
-    //  ОБРАБОТКА КНОПКИ "🗑️ Закрыть" (без ошибок)
-    // ========================================
+// ========================================
+//  ОБРАБОТЧИКИ
+// ========================================
+
+if (bot) {
 
     bot.action('dismiss_message', async (ctx) => {
         try {
             await ctx.deleteMessage();
-        } catch (err) {
-            // Игнорируем
-        }
+        } catch (err) {}
         try {
             await ctx.answerCbQuery('🗑️ Сообщение удалено');
-        } catch (err) {
-            // Игнорируем "query is too old"
-        }
+        } catch (err) {}
     });
-
-    // ========================================
-    //  ОБРАБОТКА КНОПКИ "✅ Прочитал" (без ошибок)
-    // ========================================
 
     bot.action(/dismiss_(.+)/, async (ctx) => {
-        const taskId = ctx.match[1];
         try {
             await ctx.deleteMessage();
-            console.log(`🗑️ Сообщение о задании #${taskId} удалено у ${ctx.chat.id}`);
-        } catch (err) {
-            // Игнорируем
-        }
+        } catch (err) {}
         try {
             await ctx.answerCbQuery('✅ Сообщение удалено');
-        } catch (err) {
-            // Игнорируем "query is too old"
-        }
+        } catch (err) {}
     });
 
-// ========================================
-//  /start — ГЛАВНОЕ МЕНЮ
-// ========================================
+    // ========================================
+    //  /start
+    // ========================================
 
-bot.start(async (ctx) => {
-    const name = ctx.from.first_name || 'Вязальщик';
-    const userId = String(ctx.from.id);
-    
-    const user = await User.findOne({ where: { telegramId: userId } });
-    
-    let status = '';
-    if (user) {
-        status = `\n✅ Аккаунт привязан: ${user.login} (${user.role})`;
-    } else {
-        status = '\n⚠️ Аккаунт не привязан. Нажмите "Привязать аккаунт"';
-    }
-    
-    await ctx.reply(`
+    bot.start(async (ctx) => {
+        const name = ctx.from.first_name || 'Вязальщик';
+        const userId = String(ctx.from.id);
+        
+        const user = await User.findOne({ where: { telegramId: userId } });
+        
+        let status = '';
+        if (user) {
+            status = `\n✅ Аккаунт привязан: ${user.login} (${user.role})`;
+        } else {
+            status = '\n⚠️ Аккаунт не привязан. Нажмите "Привязать аккаунт"';
+        }
+        
+        await ctx.reply(`
 🧵 Привет, ${name}!
 
 Я бот фабрики Dika Knit.
 ${status}
 
 Выберите действие:
-    `, mainKeyboard);
-});
+        `, mainKeyboard);
+    });
 
     // ========================================
     //  🔗 ПРИВЯЗАТЬ АККАУНТ
@@ -1576,7 +1631,7 @@ admin:admin123
     });
 
     // ========================================
-    //  ОБРАБОТКА ВВОДА ЛОГИНА И ПАРОЛЯ
+    //  ОБРАБОТКА ВВОДА ЛОГИНА:ПАРОЛЯ
     // ========================================
 
     bot.on('text', async (ctx, next) => {
@@ -1620,6 +1675,111 @@ admin:admin123
         }
         
         await next();
+    });
+
+    // ========================================
+    //  ✅ НА РАБОТУ
+    // ========================================
+
+    bot.hears('✅ На работу', async (ctx) => {
+        const userId = String(ctx.from.id);
+        
+        try {
+            const user = await User.findOne({ where: { telegramId: userId } });
+            if (!user) {
+                await sendDismissibleMessage(ctx, '❌ Сначала привяжите аккаунт через "🔗 Привязать аккаунт"');
+                return;
+            }
+            
+            if (user.role !== 'worker' && user.role !== 'master') {
+                await sendDismissibleMessage(ctx, '❌ У вас нет роли вязальщика или мастера. Обратитесь к администратору.');
+                return;
+            }
+            
+            await user.update({
+                isActiveForNotifications: true,
+                lastActiveAt: new Date()
+            });
+            
+            await sendDismissibleMessage(ctx, `
+✅ Вы НА РАБОТЕ!
+
+🟢 Уведомления ВКЛЮЧЕНЫ
+📨 Вы будете получать уведомления о новых заказах
+
+⏹️ В конце смены нажмите "Закончил работу"
+            `);
+            
+            const admins = await User.findAll({ where: { role: 'admin', telegramId: { [Op.ne]: null } } });
+            for (const admin of admins) {
+                if (admin.telegramId) {
+                    bot.telegram.sendMessage(
+                        admin.telegramId,
+                        `🟢 ${user.fullName} вышел на работу! (${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })})`
+                    ).catch(() => {});
+                }
+            }
+            
+        } catch (err) {
+            console.error('Ошибка включения уведомлений:', err);
+            await sendDismissibleMessage(ctx, '❌ Ошибка при включении уведомлений');
+        }
+    });
+
+    // ========================================
+    //  ⏹️ ЗАКОНЧИЛ РАБОТУ
+    // ========================================
+
+    bot.hears('⏹️ Закончил работу', async (ctx) => {
+        const userId = String(ctx.from.id);
+        
+        try {
+            const user = await User.findOne({ where: { telegramId: userId } });
+            if (!user) {
+                await sendDismissibleMessage(ctx, '❌ Сначала привяжите аккаунт');
+                return;
+            }
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const operations = await Operation.findAll({
+                where: {
+                    employeeId: user.id,
+                    createdAt: { [Op.gte]: today }
+                }
+            });
+            
+            const totalDone = operations.reduce((sum, op) => sum + op.quantity, 0);
+            
+            await user.update({
+                isActiveForNotifications: false
+            });
+            
+            await sendDismissibleMessage(ctx, `
+⏹️ Вы ЗАКОНЧИЛИ РАБОТУ!
+
+🟡 Уведомления ВЫКЛЮЧЕНЫ
+📊 За сегодня вы связали: ${totalDone} шт.
+📋 Операций: ${operations.length}
+
+👋 Хорошего отдыха!
+            `);
+            
+            const admins = await User.findAll({ where: { role: 'admin', telegramId: { [Op.ne]: null } } });
+            for (const admin of admins) {
+                if (admin.telegramId) {
+                    bot.telegram.sendMessage(
+                        admin.telegramId,
+                        `🔴 ${user.fullName} закончил работу!\n📊 Связано за смену: ${totalDone} шт.`
+                    ).catch(() => {});
+                }
+            }
+            
+        } catch (err) {
+            console.error('Ошибка выключения уведомлений:', err);
+            await sendDismissibleMessage(ctx, '❌ Ошибка при выключении уведомлений');
+        }
     });
 
     // ========================================
@@ -1723,27 +1883,26 @@ ${percent >= 100 ? '🎉 Отлично! Все задания выполнен�
     });
 
     // ========================================
-//  🔧 НАСТРОЙКИ (ТОЛЬКО ДЛЯ bot_admin)
-// ========================================
+    //  🔧 НАСТРОЙКИ
+    // ========================================
 
-bot.hears('🔧 Настройки', async (ctx) => {
-    const userId = String(ctx.from.id);
-    const user = await User.findOne({ where: { telegramId: userId } });
-    
-    if (!user || user.role !== 'bot_admin') {
-        await ctx.reply('❌ У вас нет прав для доступа к настройкам бота.');
-        return;
-    }
-    
-    // Одно сообщение с админ-панелью
-    await ctx.reply(`
+    bot.hears('🔧 Настройки', async (ctx) => {
+        const userId = String(ctx.from.id);
+        const user = await User.findOne({ where: { telegramId: userId } });
+        
+        if (!user || user.role !== 'bot_admin') {
+            await ctx.reply('❌ У вас нет прав для доступа к настройкам бота.');
+            return;
+        }
+        
+        await ctx.reply(`
 👑 *АДМИН-ПАНЕЛЬ БОТА*
 
 Добро пожаловать, ${user.fullName || user.login}!
 
 Выберите действие:
-    `, settingsKeyboard);
-});
+        `, settingsKeyboard);
+    });
 
     // ========================================
     //  👥 ВСЕ ПОЛЬЗОВАТЕЛИ
@@ -1781,9 +1940,11 @@ bot.hears('🔧 Настройки', async (ctx) => {
             users.forEach((u, index) => {
                 const emoji = roleEmojis[u.role] || '👤';
                 const tgStatus = u.telegramId ? '✅' : '❌';
+                const activeStatus = u.isActiveForNotifications ? '🟢' : '⚪';
                 message += `\n${index + 1}. ${emoji} *${u.fullName || u.login}*\n`;
                 message += `   Логин: ${u.login} | Роль: ${roleNames[u.role] || u.role}\n`;
                 message += `   TG: ${tgStatus} ${u.telegramId ? 'привязан' : 'не привязан'}\n`;
+                message += `   📨 ${activeStatus} ${u.isActiveForNotifications ? 'на работе' : 'не активен'}\n`;
             });
             
             message += '\n━━━━━━━━━━━━━━━━━━\n';
@@ -1821,16 +1982,12 @@ bot.hears('🔧 Настройки', async (ctx) => {
         `);
     });
 
-    // ========================================
-    //  ОБРАБОТКА /set_role
-    // ========================================
-
     bot.command('set_role', async (ctx) => {
         const adminId = String(ctx.from.id);
         const admin = await User.findOne({ where: { telegramId: adminId } });
         
         if (!admin || admin.role !== 'bot_admin') {
-            await sendDismissibleMessage(ctx, '❌ У вас нет прав для этой команды.\n\nТолько главный администратор бота может назначать роли.');
+            await sendDismissibleMessage(ctx, '❌ У вас нет прав для этой команды.');
             return;
         }
         
@@ -1844,7 +2001,7 @@ bot.hears('🔧 Настройки', async (ctx) => {
         const role = args[2];
         
         if (!['bot_admin', 'admin', 'boss', 'master', 'worker'].includes(role)) {
-            await sendDismissibleMessage(ctx, '❌ Некорректная роль. Доступные: bot_admin, admin, boss, master, worker');
+            await sendDismissibleMessage(ctx, '❌ Некорректная роль.');
             return;
         }
         
@@ -1870,7 +2027,7 @@ bot.hears('🔧 Настройки', async (ctx) => {
     });
 
     // ========================================
-    //  📢 ОТПРАВИТЬ УВЕДОМЛЕНИЕ (ЧЕРЕЗ КНОПКИ)
+    //  📢 ОТПРАВИТЬ УВЕДОМЛЕНИЕ
     // ========================================
 
     const notificationState = {};
@@ -1903,7 +2060,6 @@ bot.hears('🔧 Настройки', async (ctx) => {
         });
     });
 
-    // Обработка выбора получателя
     bot.action(/notify_(.+)/, async (ctx) => {
         const userId = String(ctx.from.id);
         const user = await User.findOne({ where: { telegramId: userId } });
@@ -1946,7 +2102,6 @@ bot.hears('🔧 Настройки', async (ctx) => {
         return names[recipient] || recipient;
     }
 
-    // Обработка ввода текста уведомления
     bot.on('text', async (ctx, next) => {
         const userId = String(ctx.from.id);
         const state = notificationState[userId];
@@ -1962,6 +2117,7 @@ bot.hears('🔧 Настройки', async (ctx) => {
         }
         
         const { recipient } = state;
+        delete notificationState[userId];
         
         let users = [];
         let recipientName = '';
@@ -1989,269 +2145,115 @@ bot.hears('🔧 Настройки', async (ctx) => {
                 break;
             default:
                 await sendDismissibleMessage(ctx, '❌ Неизвестный получатель');
-                delete notificationState[userId];
                 return;
         }
         
         if (users.length === 0) {
-            await sendDismissibleMessage(ctx, '❌ Нет пользователей для отправки.');
-            delete notificationState[userId];
+            await sendDismissibleMessage(ctx, `❌ Нет пользователей для отправки ${recipientName}`);
             return;
         }
         
         let sent = 0;
-        for (const u of users) {
-            try {
-                await bot.telegram.sendMessage(u.telegramId, `📢 *Уведомление от администратора*\n\n${text}`, {
-                    parse_mode: 'Markdown'
-                });
-                sent++;
-            } catch (e) {
-                console.error(`❌ ${u.login}:`, e.message);
+        let failed = 0;
+        
+        for (const user of users) {
+            if (user.telegramId) {
+                try {
+                    await bot.telegram.sendMessage(user.telegramId, `
+📢 *УВЕДОМЛЕНИЕ ОТ АДМИНИСТРАЦИИ*
+
+${text}
+
+━━━━━━━━━━━━━━━━━━
+📅 ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
+                    `, { parse_mode: 'Markdown' });
+                    sent++;
+                } catch (err) {
+                    failed++;
+                    console.error(`❌ Ошибка отправки ${user.fullName}:`, err.message);
+                }
             }
         }
         
-        await sendDismissibleMessage(ctx, `✅ Уведомление отправлено ${sent} ${recipientName}.`);
-        delete notificationState[userId];
+        await sendDismissibleMessage(ctx, `
+📢 *Уведомление отправлено!*
+
+✅ Получателей: ${users.length}
+📨 Доставлено: ${sent}
+❌ Не доставлено: ${failed}
+
+📌 Кому: ${recipientName}
+        `);
     });
 
     // ========================================
-    //  🚪 ВЫЙТИ (ОТВЯЗАТЬ АККАУНТ)
+    //  🔙 В ГЛАВНОЕ МЕНЮ
+    // ========================================
+
+    bot.hears('🔙 В главное меню', async (ctx) => {
+        await ctx.reply('🔙 Возвращаюсь в главное меню', mainKeyboard);
+    });
+
+    // ========================================
+    //  🚪 ВЫЙТИ
     // ========================================
 
     bot.hears('🚪 Выйти', async (ctx) => {
-        const userId = String(ctx.from.id);
+        await ctx.reply('👋 До свидания! Чтобы вернуться, нажмите /start');
+    });
+
+    console.log('🤖 Все обработчики бота загружены');
+}
+
+// ========================================
+//  ФУНКЦИЯ ОТПРАВКИ УВЕДОМЛЕНИЙ АКТИВНЫМ ВЯЗАЛЬЩИКАМ
+// ========================================
+
+async function sendNotificationToActiveWorkers(task, model, color, planQuantity, ip) {
+    try {
+        const workers = await User.findAll({
+            where: { 
+                role: 'worker',
+                isActiveForNotifications: true,
+                telegramId: { [Op.ne]: null }
+            }
+        });
         
-        try {
-            const user = await User.findOne({ where: { telegramId: userId } });
-            
-            if (!user) {
-                await sendDismissibleMessage(ctx, '❌ Вы не привязаны к аккаунту.');
-                return;
-            }
-            
-            const login = user.login;
-            
-            await user.update({ telegramId: null });
-            
-            await sendDismissibleMessage(ctx, `
-✅ Вы вышли из аккаунта ${login}.
-
-Теперь вы не будете получать уведомления.
-Чтобы снова привязать аккаунт — нажмите "🔗 Привязать аккаунт".
-            `);
-            
-        } catch (err) {
-            console.error('Ошибка выхода:', err);
-            await sendDismissibleMessage(ctx, '❌ Ошибка при выходе из аккаунта.');
+        if (workers.length === 0) {
+            console.log('📨 Нет активных вязальщиков для уведомления');
+            return;
         }
-    });
+        
+        const modelName = model ? model.name : 'Новое задание';
+        const colorName = color ? color.name : '—';
+        const urgent = task.isUrgent ? '🔥 СРОЧНО! ' : '';
+        const taskUrl = process.env.APP_URL || 'https://твой-сайт.render.com/worker';
+        
+        for (const worker of workers) {
+            if (worker.telegramId) {
+                const message = `
+${urgent}📋 Новое задание!
 
-  // ========================================
-//  🔙 В ГЛАВНОЕ МЕНЮ
-// ========================================
+🧵 Модель: ${modelName}
+🎨 Цвет: ${colorName}
+📦 Количество: ${planQuantity || 'смотри в приложении'}
+🏢 ИП: ${ip || '—'}
 
-bot.hears('🔙 В главное меню', async (ctx) => {
-    // Отправляем главное меню
-    await ctx.reply('🏠 *Главное меню*\n\nВыберите действие:', mainKeyboard);
-});
-
-    // ========================================
-    //  🔔 УВЕДОМЛЕНИЯ
-    // ========================================
-
-    async function notifyActiveWorkers(message, taskId) {
-        if (!bot) return 0;
-        try {
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-            const workers = await User.findAll({
-                where: {
-                    role: 'worker',
-                    telegramId: { [Op.not]: null },
-                    lastActiveAt: { [Op.gte]: fiveMinutesAgo }
-                }
-            });
-            if (workers.length === 0) return 0;
-            const keyboard = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: '✅ Прочитал', callback_data: `dismiss_${taskId}` }]]
-                }
-            };
-            let sent = 0;
-            for (const w of workers) {
+👆 Перейдите в систему: ${taskUrl}
+                `;
+                
                 try {
-                    await bot.telegram.sendMessage(w.telegramId, message, { parse_mode: 'Markdown', ...keyboard });
-                    sent++;
-                } catch (e) { console.error(`❌ ${w.login}:`, e.message); }
-            }
-            return sent;
-        } catch (err) { console.error('Ошибка уведомления вязальщиков:', err); return 0; }
-    }
-
-    async function notifyAdmins(message, taskId) {
-        if (!bot) return 0;
-        try {
-            const admins = await User.findAll({
-                where: {
-                    role: 'admin',
-                    telegramId: { [Op.not]: null }
-                }
-            });
-            if (admins.length === 0) return 0;
-            const keyboard = {
-                reply_markup: {
-                    inline_keyboard: [[{ text: '✅ Прочитал', callback_data: `dismiss_${taskId}` }]]
-                }
-            };
-            let sent = 0;
-            for (const a of admins) {
-                try {
-                    await bot.telegram.sendMessage(a.telegramId, message, { parse_mode: 'Markdown', ...keyboard });
-                    sent++;
-                } catch (e) { console.error(`❌ ${a.login}:`, e.message); }
-            }
-            return sent;
-        } catch (err) { console.error('Ошибка уведомления админов:', err); return 0; }
-    }
-
-    async function notifyBosses(message) {
-        if (!bot) return 0;
-        try {
-            const bosses = await User.findAll({
-                where: {
-                    role: 'boss',
-                    telegramId: { [Op.not]: null }
-                }
-            });
-            if (bosses.length === 0) return 0;
-            let sent = 0;
-            for (const b of bosses) {
-                try {
-                    await bot.telegram.sendMessage(b.telegramId, message, { parse_mode: 'Markdown' });
-                    sent++;
-                } catch (e) { console.error(`❌ ${b.login}:`, e.message); }
-            }
-            return sent;
-        } catch (err) { console.error('Ошибка уведомления начальства:', err); return 0; }
-    }
-
-    async function generateShiftReport(date, shift) {
-        try {
-            const start = new Date(date);
-            let startDate, endDate;
-            if (shift === 'day') {
-                startDate = new Date(start); startDate.setHours(8, 0, 0, 0);
-                endDate = new Date(start); endDate.setHours(20, 0, 0, 0);
-            } else {
-                startDate = new Date(start); startDate.setHours(20, 0, 0, 0);
-                endDate = new Date(start); endDate.setDate(endDate.getDate() + 1); endDate.setHours(8, 0, 0, 0);
-            }
-
-            const ops = await Operation.findAll({
-                where: { createdAt: { [Op.gte]: startDate, [Op.lt]: endDate } },
-                include: [
-                    { model: User, as: 'employee' },
-                    { model: Machine, as: 'machine' },
-                    { model: Task, include: [{ model: Model }] }
-                ]
-            });
-
-            if (ops.length === 0) return `📊 За ${shift === 'day' ? 'дневную' : 'ночную'} смену (${new Date(startDate).toLocaleDateString('ru-RU')}) данных нет.`;
-
-            const machines = {};
-            const tasks = {};
-            let total = 0;
-            for (const op of ops) {
-                total += op.quantity;
-                const num = op.machine?.machineNumber || '?';
-                machines[num] = (machines[num] || 0) + op.quantity;
-                const key = op.taskId;
-                if (!tasks[key]) {
-                    tasks[key] = {
-                        model: op.Task?.Model?.name || '—',
-                        done: 0,
-                        plan: op.Task?.planQuantity || 0
-                    };
-                }
-                tasks[key].done += op.quantity;
-            }
-
-            let report = `📊 *ОТЧЁТ О СМЕНЕ*\n${shift === 'day' ? 'Дневная' : 'Ночная'}\n${new Date(startDate).toLocaleDateString('ru-RU')}\n━━━━━━━━━━━━━━━━━━\n\n`;
-
-            report += `🧵 *ПО МАШИНКАМ:*\n`;
-            const sorted = Object.entries(machines).sort((a, b) => a[0] - b[0]);
-            for (const [num, count] of sorted) {
-                report += `   Машина №${num}: ${count} шт.\n`;
-            }
-
-            report += `\n🖥️ *МАШИНКИ В РАБОТЕ:* ${Object.keys(machines).length}\n`;
-            report += `\n📋 *ЗАКАЗЫ ВЫПОЛНЕНЫ:*\n`;
-            let hasCompleted = false;
-            for (const [id, t] of Object.entries(tasks)) {
-                if (t.done >= t.plan && t.plan > 0) {
-                    report += `   ✅ ${t.model} — ${t.done} шт.\n`;
-                    hasCompleted = true;
+                    await bot.telegram.sendMessage(worker.telegramId, message);
+                    console.log(`📨 Уведомление отправлено ${worker.fullName}`);
+                } catch (err) {
+                    console.error(`❌ Ошибка отправки ${worker.fullName}:`, err.message);
                 }
             }
-            if (!hasCompleted) report += `   —\n`;
-
-            report += `\n⏳ *ЗАКАЗЫ В РАБОТЕ:*\n`;
-            let hasInProgress = false;
-            for (const [id, t] of Object.entries(tasks)) {
-                if (t.done < t.plan) {
-                    const pct = t.plan > 0 ? Math.round((t.done / t.plan) * 100) : 0;
-                    report += `   🔄 ${t.model} — ${t.done}/${t.plan} (${pct}%)\n`;
-                    hasInProgress = true;
-                }
-            }
-            if (!hasInProgress) report += `   —\n`;
-
-            report += `\n📊 *ОБЩАЯ СТАТИСТИКА:*\n`;
-            report += `   🧶 Всего связано: ${total} шт.\n`;
-            report += `   📦 Выполнено заказов: ${Object.values(tasks).filter(t => t.done >= t.plan && t.plan > 0).length}\n`;
-            report += `   🔄 В работе: ${Object.values(tasks).filter(t => t.done < t.plan).length}`;
-
-            return report;
-        } catch (err) {
-            console.error('Ошибка генерации отчёта:', err);
-            return '❌ Ошибка при формировании отчёта';
         }
+    } catch (err) {
+        console.error('❌ Ошибка отправки уведомлений:', err);
     }
 }
-
-// ========================================
-//  ЗАПУСК БОТА (polling)
-// ========================================
-
-if (bot) {
-    bot.launch(() => {
-        console.log('🤖 Бот запущен (polling)');
-    });
-}
-
-// ========================================
-//  РАСПИСАНИЕ ОТЧЁТОВ (node-cron)
-// ========================================
-
-cron.schedule('0 20 * * *', async () => {
-    console.log('📊 Отправка дневного отчёта...');
-    const date = new Date();
-    const report = await generateShiftReport(date, 'day');
-    await notifyBosses(report);
-});
-
-cron.schedule('0 8 * * *', async () => {
-    console.log('📊 Отправка ночного отчёта...');
-    const date = new Date();
-    const report = await generateShiftReport(date, 'night');
-    await notifyBosses(report);
-});
-
-// ========================================
-//  ПРОФИЛЬ (СМЕНА ПАРОЛЯ)
-// ========================================
-
-app.use('/', profileRoutes);
 
 // ========================================
 //  ЗАПУСК
