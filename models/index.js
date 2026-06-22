@@ -86,13 +86,6 @@ const Task = sequelize.define('Task', {
     lastPrintedAt: { type: DataTypes.DATE, defaultValue: null },
     ip: { type: DataTypes.STRING, allowNull: true, defaultValue: null },
     isCoat: { type: DataTypes.BOOLEAN, defaultValue: false },
-    // Поле для будущей миграции (пока не используется)
-    parts: {
-        type: DataTypes.JSON,
-        defaultValue: [],
-        allowNull: true
-    },
-    // Старые поля для обратной совместимости
     isPart: { type: DataTypes.BOOLEAN, defaultValue: false },
     partName: { type: DataTypes.STRING, allowNull: true },
     parentTaskId: { type: DataTypes.INTEGER, allowNull: true },
@@ -124,7 +117,7 @@ Task.belongsTo(Model, { foreignKey: 'modelId' });
 Task.belongsTo(Color, { foreignKey: 'colorId' });
 
 // Связь для деталей кофты (ТОЛЬКО ОДНА)
-Task.hasMany(Task, { as: 'parts_old', foreignKey: 'parentTaskId' });
+Task.hasMany(Task, { as: 'parts', foreignKey: 'parentTaskId' });
 Task.belongsTo(Task, { as: 'parent', foreignKey: 'parentTaskId' });
 
 // Связь для операций
