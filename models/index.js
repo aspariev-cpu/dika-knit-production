@@ -25,7 +25,7 @@ const User = sequelize.define('User', {
         defaultValue: 'worker' 
     },
     lastActiveAt: { type: DataTypes.DATE, allowNull: true },
-    isActiveForNotifications: {   // 👈 НОВОЕ ПОЛЕ
+    isActiveForNotifications: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     }
