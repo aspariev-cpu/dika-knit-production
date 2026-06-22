@@ -1173,7 +1173,7 @@ app.post('/api/operations', async (req, res) => {
         });
         
     } catch (err) {
-        console.error('❌ Ошибка при сохранении выработки:', err);
+        console.error('❌ Ошибк при сохранении выработки:', err);
         res.status(500).json({ error: 'Ошибка при сохранении: ' + err.message });
     }
 });
