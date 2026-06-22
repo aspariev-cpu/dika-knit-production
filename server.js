@@ -1059,6 +1059,8 @@ app.post('/api/tasks', async (req, res) => {
 
 app.post('/api/operations', async (req, res) => {
     const { taskId, machineId, quantity } = req.body;
+    console.log('📥 Получен запрос на сохранение выработки:', { taskId, machineId, quantity });
+    
     try {
         const task = await Task.findByPk(taskId, {
             include: [
@@ -1067,6 +1069,7 @@ app.post('/api/operations', async (req, res) => {
             ]
         });
         if (!task) {
+            console.log('❌ Задание не найдено:', taskId);
             return res.status(404).json({ error: 'Задание не найдено' });
         }
 
@@ -1084,66 +1087,74 @@ app.post('/api/operations', async (req, res) => {
         });
 
         // ========================================
-        // 2. СЧИТАЕМ ОБЩЕЕ КОЛИЧЕСТВО ИЗ ОПЕРАЦИЙ
+        // 2. СЧИТАЕМ ОБЩЕЕ КОЛИЧЕСТВО ДЛЯ ЭТОЙ ДЕТАЛИ/ЗАДАНИЯ
         // ========================================
         const ops = await Operation.findAll({ where: { taskId } });
         const totalDone = ops.reduce((sum, op) => sum + op.quantity, 0);
         const percent = task.planQuantity > 0 ? Math.min((totalDone / task.planQuantity) * 100, 100) : 0;
 
         // ========================================
-        // 3. ✅ ОБНОВЛЯЕМ doneQuantity
+        // 3. ОБНОВЛЯЕМ doneQuantity У ТЕКУЩЕГО ЗАДАНИЯ
         // ========================================
         await task.update({ doneQuantity: totalDone });
+        console.log(`✅ Обновлён doneQuantity для задания ${taskId}: ${totalDone}/${task.planQuantity}`);
 
         // ========================================
-// 4. ЕСЛИ ЭТО ДЕТАЛЬ КОФТЫ - ОБНОВЛЯЕМ РОДИТЕЛЯ
-// ========================================
-let parentProgress = null;
-if (task.isPart && task.parentTaskId) {
-    console.log(`🔄 Обновляем родителя для детали ${task.id}, parentTaskId: ${task.parentTaskId}`);
-    
-    const parent = await Task.findByPk(task.parentTaskId, {
-        include: [{ model: Task, as: 'parts' }]
-    });
-    
-    if (parent) {
-        console.log(`👨‍👧‍👦 Найден родитель: кофта ${parent.id}`);
+        // 4. ЕСЛИ ЭТО ДЕТАЛЬ КОФТЫ - ОБНОВЛЯЕМ РОДИТЕЛЯ
+        // ========================================
+        let parentProgress = null;
         
-        let totalParentDone = 0;
-        let totalParentPlan = 0;
-        
-        for (const part of parent.parts) {
-            const partOps = await Operation.findAll({ where: { taskId: part.id } });
-            const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
-            totalParentDone += Math.min(partDone, part.planQuantity);
-            totalParentPlan += part.planQuantity;
+        if (task.isPart && task.parentTaskId) {
+            console.log(`🔄 Это деталь кофты! parentTaskId: ${task.parentTaskId}`);
             
-            // ✅ Обновляем doneQuantity у каждой детали
-            await part.update({ doneQuantity: partDone });
-            console.log(`   Деталь ${part.id} (${part.partName}): ${partDone}/${part.planQuantity}`);
+            // Находим родительскую кофту со всеми деталями
+            const parent = await Task.findByPk(task.parentTaskId, {
+                include: [{ model: Task, as: 'parts' }]
+            });
+            
+            if (parent) {
+                console.log(`👨‍👧‍👦 Найдена родительская кофта: ID ${parent.id}`);
+                
+                let totalParentDone = 0;
+                let totalParentPlan = 0;
+                
+                // Перебираем все детали кофты
+                for (const part of parent.parts) {
+                    // Считаем сумму операций для каждой детали
+                    const partOps = await Operation.findAll({ where: { taskId: part.id } });
+                    const partDone = partOps.reduce((sum, op) => sum + op.quantity, 0);
+                    
+                    // Добавляем к общему прогрессу (не больше плана)
+                    const doneForParent = Math.min(partDone, part.planQuantity);
+                    totalParentDone += doneForParent;
+                    totalParentPlan += part.planQuantity;
+                    
+                    // Обновляем doneQuantity у детали
+                    await part.update({ doneQuantity: partDone });
+                    console.log(`   Деталь ${part.id} (${part.partName}): ${partDone}/${part.planQuantity}`);
+                }
+                
+                console.log(`📊 Итог по кофте ${parent.id}: ${totalParentDone}/${totalParentPlan}`);
+                
+                // Обновляем doneQuantity у родительской кофты
+                await parent.update({ doneQuantity: totalParentDone });
+                
+                // Перезагружаем данные из БД
+                await parent.reload();
+                console.log(`✅ Обновлён doneQuantity у кофты ${parent.id}: ${parent.doneQuantity}`);
+                
+                const parentPercent = totalParentPlan > 0 ? Math.min((totalParentDone / totalParentPlan) * 100, 100) : 0;
+                
+                parentProgress = {
+                    coatId: parent.id,
+                    totalDone: totalParentDone,
+                    totalPlan: totalParentPlan,
+                    percent: parentPercent
+                };
+            } else {
+                console.log(`❌ Родительская кофта с ID ${task.parentTaskId} не найдена!`);
+            }
         }
-        
-        console.log(`📊 Итог по кофте ${parent.id}: ${totalParentDone}/${totalParentPlan}`);
-        
-        // ✅ Обновляем doneQuantity у родительской кофты
-        await parent.update({ doneQuantity: totalParentDone });
-        
-        // 🔥 ПРИНУДИТЕЛЬНО ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ИЗ БД
-        await parent.reload();
-        console.log(`✅ Обновлён doneQuantity у кофты ${parent.id}: ${parent.doneQuantity}`);
-        
-        const parentPercent = totalParentPlan > 0 ? Math.min((totalParentDone / totalParentPlan) * 100, 100) : 0;
-        
-        parentProgress = {
-            coatId: parent.id,
-            totalDone: totalParentDone,
-            totalPlan: totalParentPlan,
-            percent: parentPercent
-        };
-    } else {
-        console.log(`❌ Родитель с ID ${task.parentTaskId} не найден!`);
-    }
-}
 
         // ========================================
         // 5. ОТВЕТ
@@ -1160,9 +1171,10 @@ if (task.isPart && task.parentTaskId) {
             partName: task.partName,
             parentProgress: parentProgress
         });
+        
     } catch (err) {
         console.error('❌ Ошибка при сохранении выработки:', err);
-        res.status(500).json({ error: 'Ошибка при сохранении' });
+        res.status(500).json({ error: 'Ошибка при сохранении: ' + err.message });
     }
 });
 
