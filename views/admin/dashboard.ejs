@@ -349,36 +349,21 @@
                 </thead>
                 <tbody id="tasksBody">
                     <% 
-                        // ⚡ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ: получаем детали из JSON или из parts_old
-                        function getCoatParts(coat) {
-                            // Сначала проверяем JSON-поле parts
-                            if (coat.parts && Array.isArray(coat.parts) && coat.parts.length > 0) {
-                                return coat.parts;
-                            }
-                            // Если нет - используем старую связь parts_old
-                            if (coat.parts_old && Array.isArray(coat.parts_old) && coat.parts_old.length > 0) {
-                                return coat.parts_old;
-                            }
-                            return [];
-                        }
-
                         function getCoatProgress(coat) {
-                            const parts = getCoatParts(coat);
+                            const parts = coat.parts || [];
                             let totalDone = 0;
                             let totalPlan = 0;
                             parts.forEach(part => {
-                                // Для JSON-деталей поля называются plan и done
-                                const plan = part.plan || part.planQuantity || 0;
-                                const done = part.done || part.doneQuantity || 0;
-                                totalDone += Math.min(done, plan);
-                                totalPlan += plan;
+                                const done = part.doneQuantity || 0;
+                                totalDone += Math.min(done, part.planQuantity);
+                                totalPlan += part.planQuantity;
                             });
                             return { totalDone, totalPlan };
                         }
 
                         function getPartsString(coat) {
-                            const parts = getCoatParts(coat);
-                            return parts.map(p => p.partName || p.name || 'Деталь').join(', ');
+                            const parts = coat.parts || [];
+                            return parts.map(p => p.partName || p.Model?.name || 'Деталь').join(', ');
                         }
                     %>
                     <% if (tasks && tasks.length > 0) { %>
@@ -792,8 +777,7 @@
                 
                 const task = data.task;
                 const isCoat = task.isCoat || false;
-                // Используем универсальную функцию для получения деталей
-                const parts = task.parts && task.parts.length > 0 ? task.parts : (task.parts_old || []);
+                const parts = task.parts || [];
                 
                 document.getElementById('editModelName').textContent = task.Model?.name || '—';
                 document.getElementById('editColorName').textContent = task.Color?.name || '—';
@@ -819,29 +803,25 @@
                     const container = document.getElementById('editCoatPartsFields');
                     container.innerHTML = '';
                     
-                    parts.forEach((part, index) => {
-                        // Для JSON-деталей используем plan/done, для старых - planQuantity/doneQuantity
-                        const partPlan = part.plan || part.planQuantity || 0;
-                        const partDone = part.done || part.doneQuantity || 0;
-                        const partName = part.partName || part.name || 'Деталь';
-                        // Для старых деталей используем part.id, для JSON - индекс
-                        const partId = part.id || index;
+                    parts.forEach(part => {
+                        const partDone = part.doneQuantity || 0;
+                        const partPlan = part.planQuantity || 0;
                         
                         const div = document.createElement('div');
                         div.className = 'edit-part-field';
                         div.innerHTML = `
                             <div class="part-header">
-                                <span class="name">${partName}</span>
+                                <span class="name">${part.partName || 'Деталь'}</span>
                                 <span>связано: <strong class="done">${partDone}</strong></span>
                             </div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                                 <div>
                                     <label style="font-size:10px; color:#8892b0; display:block;">📦 План</label>
-                                    <input type="number" name="part_${partId}_plan" value="${partPlan}" min="0">
+                                    <input type="number" name="part_${part.id}_plan" value="${partPlan}" min="0">
                                 </div>
                                 <div>
                                     <label style="font-size:10px; color:#8892b0; display:block;">🔧 Связано</label>
-                                    <input type="number" name="part_${partId}_done" value="${partDone}" min="0">
+                                    <input type="number" name="part_${part.id}_done" value="${partDone}" min="0">
                                 </div>
                             </div>
                         `;
@@ -931,6 +911,11 @@
                 }
             });
         });
+
+        // ========================================
+        //  ЗАПУСК ЗАГРУЗКИ ДАННЫХ
+        // ========================================
+        loadData();
     </script>
 </body>
 </html>
