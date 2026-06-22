@@ -1130,62 +1130,62 @@ app.post('/api/operations', async (req, res) => {
         }
 
         // ========================================
-        // 3. НОВАЯ ЛОГИКА ДЛЯ КОФТЫ (ОБНОВЛЕНИЕ JSON)
-        // ========================================
-        if (task.isCoat && task.parts && task.parts.length > 0) {
-            // Получаем имя детали из запроса
-            const partName = req.body.partName;
-            
-            if (!partName) {
-                console.log('❌ Не передано имя детали для кофты');
-                return res.status(400).json({ error: 'Не указана деталь' });
-            }
-            
-            // Находим деталь в массиве parts
-            const partIndex = task.parts.findIndex(p => p.name === partName);
-            
-            if (partIndex === -1) {
-                console.log(`❌ Деталь "${partName}" не найдена в кофте ${task.id}`);
-                return res.status(404).json({ error: `Деталь "${partName}" не найдена` });
-            }
-            
-            // Обновляем done у конкретной детали
-            task.parts[partIndex].done = (task.parts[partIndex].done || 0) + parseInt(quantity);
-            
-            // Пересчитываем общий прогресс
-            let totalDone = 0;
-            let totalPlan = 0;
-            task.parts.forEach(p => {
-                totalDone += Math.min(p.done, p.plan);
-                totalPlan += p.plan;
-            });
-            
-            // Сохраняем изменения
-            task.doneQuantity = totalDone;
-            await task.save();
-            
-            const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
-            
-            console.log(`✅ Обновлена кофта ${task.id}: ${totalDone}/${totalPlan} (деталь: ${partName})`);
-            
-            return res.json({
-                success: true,
-                operationId: operation.id,
-                quantity: quantity,
-                totalDone: totalDone,
-                percent: percent,
-                planQuantity: totalPlan,
-                machineId: machineId,
-                isPart: false,
-                partName: partName,
-                parentProgress: {
-                    coatId: task.id,
-                    totalDone: totalDone,
-                    totalPlan: totalPlan,
-                    percent: percent
-                }
-            });
+// 3. НОВАЯ ЛОГИКА ДЛЯ КОФТЫ (ОБНОВЛЕНИЕ JSON)
+// ========================================
+if (task.isCoat && task.parts && task.parts.length > 0) {
+    const partName = req.body.partName;
+    
+    if (!partName) {
+        console.log('❌ Не передано имя детали для кофты');
+        return res.status(400).json({ error: 'Не указана деталь' });
+    }
+    
+    const partIndex = task.parts.findIndex(p => p.name === partName);
+    
+    if (partIndex === -1) {
+        console.log(`❌ Деталь "${partName}" не найдена в кофте ${task.id}`);
+        return res.status(404).json({ error: `Деталь "${partName}" не найдена` });
+    }
+    
+    // Обновляем done у конкретной детали
+    task.parts[partIndex].done = (task.parts[partIndex].done || 0) + parseInt(quantity);
+    
+    // Пересчитываем общий прогресс
+    let totalDone = 0;
+    let totalPlan = 0;
+    task.parts.forEach(p => {
+        totalDone += Math.min(p.done, p.plan);
+        totalPlan += p.plan;
+    });
+    
+    // ✅ ИСПРАВЛЕНИЕ: обновляем через update, а не save
+    await task.update({ 
+        doneQuantity: totalDone,
+        parts: task.parts 
+    });
+    
+    const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
+    
+    console.log(`✅ Обновлена кофта ${task.id}: ${totalDone}/${totalPlan} (деталь: ${partName})`);
+    
+    return res.json({
+        success: true,
+        operationId: operation.id,
+        quantity: quantity,
+        totalDone: totalDone,
+        percent: percent,
+        planQuantity: totalPlan,
+        machineId: machineId,
+        isPart: false,
+        partName: partName,
+        parentProgress: {
+            coatId: task.id,
+            totalDone: totalDone,
+            totalPlan: totalPlan,
+            percent: percent
         }
+    });
+}
 
         // ========================================
         // 4. СТАРАЯ ЛОГИКА ДЛЯ КОФТ (ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ)
