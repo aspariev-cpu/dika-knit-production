@@ -1495,7 +1495,7 @@ const mainKeyboard = {
         keyboard: [
             ['📋 Мои задания', '📊 Статистика'],
             ['🔗 Привязать аккаунт', '🔧 Настройки'],
-            ['🚪 Выйти']
+            ['🟢 На работе', '🚪 Выйти']
         ],
         resize_keyboard: true
     }
@@ -1506,6 +1506,7 @@ const settingsKeyboard = {
         keyboard: [
             ['👥 Все пользователи'],
             ['👤 Дать роль', '👤 Снять роль'],
+            ['👤 Управление статусами'],
             ['📢 Отправить уведомление'],
             ['📊 Тест отчёта'],
             ['🔙 В главное меню']
@@ -1583,8 +1584,9 @@ if (bot) {
         const buttonTexts = [
             '📋 Мои задания', '📊 Статистика', '🔗 Привязать аккаунт',
             '🔧 Настройки', '🚪 Выйти', '👥 Все пользователи',
-            '👤 Дать роль', '👤 Снять роль', '📢 Отправить уведомление',
-            '📊 Тест отчёта', '🔙 В главное меню'
+            '👤 Дать роль', '👤 Снять роль', '👤 Управление статусами',
+            '📢 Отправить уведомление', '📊 Тест отчёта',
+            '🔙 В главное меню', '🟢 На работе', '🔴 Отдыхаю'
         ];
         
         const isCommand = text?.startsWith('/');
@@ -1644,8 +1646,18 @@ if (bot) {
         const user = await User.findOne({ where: { telegramId: userId } });
         
         let status = '';
+        let keyboard = mainKeyboard;
+        let statusText = '';
+        
         if (user) {
             status = `\n✅ Аккаунт привязан: *${user.login}* (${getRoleDisplay(user.role)})`;
+            const isActive = user.isActive !== false; // true по умолчанию
+            statusText = isActive ? '🟢 На работе' : '🔴 Отдыхаю';
+            
+            // Обновляем кнопку статуса в главном меню
+            const statusButton = isActive ? '🟢 На работе' : '🔴 Отдыхаю';
+            // Заменяем кнопку в клавиатуре
+            keyboard.reply_markup.keyboard[2] = [statusButton, '🚪 Выйти'];
         } else {
             status = '\n⚠️ Аккаунт не привязан. Нажмите "🔗 Привязать аккаунт"';
         }
@@ -1653,9 +1665,12 @@ if (bot) {
         let greeting = `🧵 *Привет, ${name}!*\n\n`;
         greeting += `Я бот фабрики *Dika Knit*.\n`;
         greeting += status;
+        if (user) {
+            greeting += `\n📌 Статус: ${statusText}`;
+        }
         greeting += '\n\nВыберите действие:';
         
-        await ctx.reply(greeting, mainKeyboard);
+        await ctx.reply(greeting, keyboard);
     });
 
     // ========================================
@@ -1675,14 +1690,56 @@ if (bot) {
 📊 Статистика — Общая статистика производства
 🔗 Привязать аккаунт — Связать Telegram с сайтом
 🔧 Настройки — Админ-панель бота
+🟢 На работе / 🔴 Отдыхаю — Включить/выключить уведомления
 🚪 Выйти — Отвязать аккаунт
 
 *Для администраторов:*
 👤 Дать роль — Назначить роль пользователю
 👤 Снять роль — Снять роль с пользователя
+👤 Управление статусами — Включить/выключить уведомления для пользователей
 📢 Отправить уведомление — Рассылка
 📊 Тест отчёта — Проверить отчёт за сегодня
         `);
+    });
+
+    // ========================================
+    //  🟢 НА РАБОТЕ / 🔴 ОТДЫХАЮ
+    // ========================================
+
+    bot.hears(['🟢 На работе', '🔴 Отдыхаю'], async (ctx) => {
+        const userId = String(ctx.from.id);
+        const user = await User.findOne({ where: { telegramId: userId } });
+        
+        if (!user) {
+            await sendDismissibleMessage(ctx, '❌ Вы не привязаны к аккаунту. Сначала нажмите "🔗 Привязать аккаунт".');
+            return;
+        }
+        
+        const currentStatus = user.isActive !== false;
+        const newStatus = !currentStatus;
+        
+        await user.update({ isActive: newStatus });
+        
+        const statusText = newStatus ? '🟢 На работе' : '🔴 Отдыхаю';
+        const message = newStatus 
+            ? '✅ Статус изменён: *На работе*\n\nВы будете получать уведомления о новых заказах.'
+            : '🔴 Статус изменён: *Отдыхаю*\n\nВы больше не будете получать уведомления о новых заказах.\nЧтобы снова получать уведомления — нажмите "🟢 На работе".';
+        
+        await sendDismissibleMessage(ctx, message);
+        
+        // Обновляем главное меню (кнопка статуса)
+        const keyboard = {
+            reply_markup: {
+                keyboard: [
+                    ['📋 Мои задания', '📊 Статистика'],
+                    ['🔗 Привязать аккаунт', '🔧 Настройки'],
+                    [statusText, '🚪 Выйти']
+                ],
+                resize_keyboard: true
+            }
+        };
+        
+        await ctx.reply('🏠 *Главное меню*', keyboard);
     });
 
     // ========================================
@@ -1702,14 +1759,14 @@ if (bot) {
                 order: [['isUrgent', 'DESC'], ['createdAt', 'ASC']]
             });
 
-            if (tasks.length === 0) {
+            if (!tasks || tasks.length === 0) {
                 await sendDismissibleMessage(ctx, '📭 Активных заданий нет\n\nВсе задания выполнены! 🎉');
                 return;
             }
 
             let message = '📋 *Активные задания*\n━━━━━━━━━━━━━━━━━━\n';
 
-            tasks.forEach((task, index) => {
+            (tasks || []).forEach((task, index) => {
                 const modelName = task.Model?.name || 'Без модели';
                 const colorName = task.Color?.name || '—';
                 const urgent = task.isUrgent ? ' 🔥' : '';
@@ -1753,7 +1810,7 @@ if (bot) {
             const urgent = await Task.count({ where: { isUrgent: true, status: ['pending', 'in_progress'] } });
             
             const allOperations = await Operation.findAll();
-            const totalDone = allOperations.reduce((sum, op) => sum + op.quantity, 0);
+            const totalDone = (allOperations || []).reduce((sum, op) => sum + op.quantity, 0);
             
             const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
             
@@ -1919,7 +1976,17 @@ admin:admin123
     // ========================================
 
     bot.hears('🔙 В главное меню', async (ctx) => {
-        await ctx.reply('🏠 *Главное меню*\n\nВыберите действие:', mainKeyboard);
+        const userId = String(ctx.from.id);
+        const user = await User.findOne({ where: { telegramId: userId } });
+        
+        let keyboard = mainKeyboard;
+        if (user) {
+            const isActive = user.isActive !== false;
+            const statusButton = isActive ? '🟢 На работе' : '🔴 Отдыхаю';
+            keyboard.reply_markup.keyboard[2] = [statusButton, '🚪 Выйти'];
+        }
+        
+        await ctx.reply('🏠 *Главное меню*\n\nВыберите действие:', keyboard);
     });
 
     // ========================================
@@ -1940,19 +2007,21 @@ admin:admin123
                 order: [['role', 'ASC'], ['fullName', 'ASC']]
             });
             
-            if (users.length === 0) {
+            if (!users || users.length === 0) {
                 await sendDismissibleMessage(ctx, '📭 Пользователей пока нет.');
                 return;
             }
             
             let message = '👥 *СПИСОК ПОЛЬЗОВАТЕЛЕЙ*\n━━━━━━━━━━━━━━━━━━\n';
             
-            users.forEach((u, index) => {
+            (users || []).forEach((u, index) => {
                 const roleDisplay = u.role ? getRoleDisplay(u.role) : '❌ Нет роли';
                 const tgStatus = u.telegramId ? '✅' : '❌';
+                const activeStatus = u.isActive !== false ? '🟢' : '🔴';
                 message += `\n${index + 1}. *${u.fullName || u.login}*\n`;
                 message += `   Логин: ${u.login} | Роль: ${roleDisplay}\n`;
                 message += `   TG: ${tgStatus} ${u.telegramId ? 'привязан' : 'не привязан'}\n`;
+                message += `   Статус: ${activeStatus} ${u.isActive !== false ? 'На работе' : 'Отдыхает'}\n`;
             });
             
             message += '\n━━━━━━━━━━━━━━━━━━\n';
@@ -1964,6 +2033,109 @@ admin:admin123
             console.error('Ошибка списка пользователей:', err);
             await sendDismissibleMessage(ctx, '❌ Ошибка при загрузке пользователей');
         }
+    });
+
+    // ========================================
+    //  👤 УПРАВЛЕНИЕ СТАТУСАМИ
+    // ========================================
+
+    bot.hears('👤 Управление статусами', async (ctx) => {
+        const userId = String(ctx.from.id);
+        const user = await User.findOne({ where: { telegramId: userId } });
+        
+        if (!user || !hasAccess(user, ['bot_admin'])) {
+            await sendDismissibleMessage(ctx, '❌ У вас нет прав для этой команды.');
+            return;
+        }
+        
+        const users = await User.findAll({
+            where: {
+                telegramId: { [Op.not]: null },
+                role: { [Op.ne]: 'bot_admin' }
+            },
+            order: [['fullName', 'ASC']]
+        });
+        
+        if (!users || users.length === 0) {
+            await sendDismissibleMessage(ctx, '📭 Нет пользователей с привязанным Telegram.');
+            return;
+        }
+        
+        const userButtons = (users || []).map(u => {
+            const statusText = u.isActive !== false ? '🟢 На работе' : '🔴 Отдыхает';
+            return [{ text: `${u.fullName || u.login} (${u.login}) — ${statusText}`, callback_data: `status_user_${u.id}` }];
+        });
+        
+        userButtons.push([{ text: '❌ Отмена', callback_data: 'status_cancel' }]);
+        
+        await ctx.reply('👤 *Выберите пользователя для изменения статуса:*', {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: userButtons
+            }
+        });
+    });
+
+    // ========================================
+    //  ОБРАБОТКА ВЫБОРА ПОЛЬЗОВАТЕЛЯ ДЛЯ СТАТУСА
+    // ========================================
+
+    bot.action(/status_user_(.+)/, async (ctx) => {
+        const targetUserId = parseInt(ctx.match[1]);
+        
+        const targetUser = await User.findByPk(targetUserId);
+        if (!targetUser) {
+            await ctx.answerCbQuery('❌ Пользователь не найден');
+            return;
+        }
+        
+        if (targetUser.role === 'bot_admin') {
+            await ctx.answerCbQuery('❌ Нельзя менять статус главного администратора');
+            return;
+        }
+        
+        const currentStatus = targetUser.isActive !== false;
+        const newStatus = !currentStatus;
+        
+        await targetUser.update({ isActive: newStatus });
+        
+        const statusText = newStatus ? '🟢 На работе' : '🔴 Отдыхает';
+        const statusEmoji = newStatus ? '🟢' : '🔴';
+        
+        await ctx.deleteMessage();
+        await sendDismissibleMessage(ctx, `
+✅ *Статус изменён!*
+
+👤 Пользователь: ${targetUser.fullName || targetUser.login}
+📌 Логин: ${targetUser.login}
+🔄 Новый статус: ${statusEmoji} ${statusText}
+        `);
+        
+        // Уведомляем пользователя
+        if (targetUser.telegramId) {
+            try {
+                await bot.telegram.sendMessage(targetUser.telegramId, `
+🔔 *Ваш статус изменён администратором*
+
+📌 Новый статус: ${statusEmoji} ${statusText}
+
+${newStatus ? 'Теперь вы будете получать уведомления о новых заказах.' : 'Теперь вы не будете получать уведомления о новых заказах.'}
+                `, { parse_mode: 'Markdown' });
+            } catch (e) {
+                console.error(`❌ ${targetUser.login}:`, e.message);
+            }
+        }
+        
+        await ctx.answerCbQuery('✅ Статус изменён');
+    });
+
+    // ========================================
+    //  ОТМЕНА (СТАТУСЫ)
+    // ========================================
+
+    bot.action('status_cancel', async (ctx) => {
+        await ctx.deleteMessage();
+        await ctx.answerCbQuery('❌ Отменено');
     });
 
     // ========================================
@@ -1984,14 +2156,14 @@ admin:admin123
             order: [['fullName', 'ASC']]
         });
         
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             await sendDismissibleMessage(ctx, '📭 Нет пользователей для назначения роли.');
             return;
         }
         
         roleState[userId] = 'give';
         
-        const userButtons = users.map(u => {
+        const userButtons = (users || []).map(u => {
             const roleDisplay = u.role ? getRoleDisplay(u.role) : '❌ Нет роли';
             return [{ text: `${u.fullName || u.login} (${u.login}) — ${roleDisplay}`, callback_data: `role_user_${u.id}` }];
         });
@@ -2026,14 +2198,14 @@ admin:admin123
             order: [['fullName', 'ASC']]
         });
         
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             await sendDismissibleMessage(ctx, '📭 Нет пользователей с ролями для снятия.');
             return;
         }
         
         roleState[userId] = 'remove';
         
-        const userButtons = users.map(u => {
+        const userButtons = (users || []).map(u => {
             const roleDisplay = u.role ? getRoleDisplay(u.role) : '❌ Нет роли';
             return [{ text: `${u.fullName || u.login} (${u.login}) — ${roleDisplay}`, callback_data: `role_user_${u.id}` }];
         });
@@ -2193,7 +2365,7 @@ admin:admin123
             order: [['fullName', 'ASC']]
         });
         
-        const userButtons = users.map(u => {
+        const userButtons = (users || []).map(u => {
             const roleDisplay = u.role ? getRoleDisplay(u.role) : '❌ Нет роли';
             return [{ text: `${u.fullName || u.login} (${u.login}) — ${roleDisplay}`, callback_data: `role_user_${u.id}` }];
         });
@@ -2335,7 +2507,7 @@ admin:admin123
                 return;
         }
         
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             await sendDismissibleMessage(ctx, '❌ Нет пользователей для отправки.');
             delete notificationState[userId];
             return;
@@ -2397,16 +2569,51 @@ admin:admin123
     //  🔔 УВЕДОМЛЕНИЯ
     // ========================================
 
+    async function notifyActiveUsers(message, taskId) {
+        if (!bot) return 0;
+        try {
+            const users = await User.findAll({
+                where: {
+                    telegramId: { [Op.not]: null },
+                    isActive: true // ✅ Только те, кто "На работе"
+                }
+            });
+            
+            if (!users || users.length === 0) return 0;
+            
+            const keyboard = {
+                reply_markup: {
+                    inline_keyboard: [[{ text: '✅ Прочитал', callback_data: `dismiss_${taskId}` }]]
+                }
+            };
+            
+            let sent = 0;
+            for (const u of users) {
+                try {
+                    await bot.telegram.sendMessage(u.telegramId, message, { parse_mode: 'Markdown', ...keyboard });
+                    sent++;
+                } catch (e) {
+                    console.error(`❌ ${u.login}:`, e.message);
+                }
+            }
+            return sent;
+        } catch (err) {
+            console.error('Ошибка уведомления пользователей:', err);
+            return 0;
+        }
+    }
+
     async function notifyAdmins(message, taskId) {
         if (!bot) return 0;
         try {
             const admins = await User.findAll({
                 where: {
                     role: 'admin',
-                    telegramId: { [Op.not]: null }
+                    telegramId: { [Op.not]: null },
+                    isActive: true // ✅ Только те, кто "На работе"
                 }
             });
-            if (admins.length === 0) return 0;
+            if (!admins || admins.length === 0) return 0;
             const keyboard = {
                 reply_markup: {
                     inline_keyboard: [[{ text: '✅ Прочитал', callback_data: `dismiss_${taskId}` }]]
@@ -2417,10 +2624,15 @@ admin:admin123
                 try {
                     await bot.telegram.sendMessage(a.telegramId, message, { parse_mode: 'Markdown', ...keyboard });
                     sent++;
-                } catch (e) { console.error(`❌ ${a.login}:`, e.message); }
+                } catch (e) {
+                    console.error(`❌ ${a.login}:`, e.message);
+                }
             }
             return sent;
-        } catch (err) { console.error('Ошибка уведомления админов:', err); return 0; }
+        } catch (err) {
+            console.error('Ошибка уведомления админов:', err);
+            return 0;
+        }
     }
 
     async function notifyBosses(message) {
@@ -2429,19 +2641,25 @@ admin:admin123
             const bosses = await User.findAll({
                 where: {
                     role: 'boss',
-                    telegramId: { [Op.not]: null }
+                    telegramId: { [Op.not]: null },
+                    isActive: true // ✅ Только те, кто "На работе"
                 }
             });
-            if (bosses.length === 0) return 0;
+            if (!bosses || bosses.length === 0) return 0;
             let sent = 0;
             for (const b of bosses) {
                 try {
                     await bot.telegram.sendMessage(b.telegramId, message, { parse_mode: 'Markdown' });
                     sent++;
-                } catch (e) { console.error(`❌ ${b.login}:`, e.message); }
+                } catch (e) {
+                    console.error(`❌ ${b.login}:`, e.message);
+                }
             }
             return sent;
-        } catch (err) { console.error('Ошибка уведомления начальства:', err); return 0; }
+        } catch (err) {
+            console.error('Ошибка уведомления начальства:', err);
+            return 0;
+        }
     }
 
     // ========================================
@@ -2474,7 +2692,7 @@ admin:admin123
                 ]
             });
 
-            if (ops.length === 0) {
+            if (!ops || ops.length === 0) {
                 return `📊 За ${shift === 'day' ? 'дневную' : 'ночную'} смену (${new Date(startDate).toLocaleDateString('ru-RU')}) данных нет.`;
             }
 
@@ -2542,7 +2760,6 @@ admin:admin123
     //  УВЕДОМЛЕНИЕ О ЗАВЕРШЕНИИ ЗАКАЗА
     // ========================================
 
-    // Функция для отправки уведомления админу
     async function notifyAdminAboutCompletion(task, employeeName) {
         if (!bot) return;
         
@@ -2564,6 +2781,34 @@ admin:admin123
         `;
         
         await notifyAdmins(message, taskId);
+    }
+
+    // ========================================
+    //  УВЕДОМЛЕНИЕ О НОВОМ ЗАКАЗЕ
+    // ========================================
+
+    async function notifyAboutNewTask(task, model, color, ip) {
+        if (!bot) return;
+        
+        const modelName = model?.name || 'Неизвестная модель';
+        const colorName = color?.name || '—';
+        const quantity = task.planQuantity || 0;
+        const taskId = task.id;
+        const urgent = task.isUrgent ? ' 🔥 СРОЧНО!' : '';
+        
+        const message = `
+🆕 *НОВЫЙ ЗАКАЗ!*${urgent}
+
+📦 Модель: *${modelName}*
+🎨 Цвет: ${colorName}
+📊 Количество: ${quantity} шт.
+🏢 ИП: ${ip || '—'}
+🆔 ID заказа: #${taskId}
+
+👆 Зайдите на сайт, чтобы начать работу.
+        `;
+        
+        await notifyActiveUsers(message, taskId);
     }
 
     // ========================================
