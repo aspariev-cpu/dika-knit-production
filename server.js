@@ -1501,12 +1501,21 @@ if (bot) {
 }
 
 // ========================================
-//  НАСТРОЙКА WEBHOOK
+//  ЗАПУСК БОТА В POLLING РЕЖИМЕ (БЕЗ WEBHOOK)
 // ========================================
 
 if (bot) {
-    app.use(bot.webhookCallback(`/bot${TELEGRAM_BOT_TOKEN}`));
-    app.post(`/bot${TELEGRAM_BOT_TOKEN}`, (req, res) => {});
+    // Запускаем бота в polling-режиме
+    bot.launch()
+        .then(() => {
+            console.log('🤖 Бот успешно запущен в polling-режиме');
+        })
+        .catch(err => {
+            console.error('❌ Ошибка запуска бота:', err);
+        });
+    
+    // Удаляем старый webhook, если был
+    bot.telegram.setWebhook('').catch(() => {});
 }
 
 // ========================================
