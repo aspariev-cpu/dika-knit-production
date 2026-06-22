@@ -697,14 +697,23 @@
             const quantityBlock = document.getElementById('quantityBlock');
             const planQuantity = document.getElementById('planQuantity');
             
-            if (model && model.isCoat && model.parts && model.parts.length > 0) {
+            if (model && model.isCoat) {
                 coatPartsBlock.style.display = 'block';
                 quantityBlock.style.display = 'none';
                 planQuantity.removeAttribute('required');
                 
                 coatPartsFields.innerHTML = '';
                 
-                model.parts.forEach((part, index) => {
+                // Если у модели есть детали — используем их, иначе стандартный набор
+                const parts = (model.parts && model.parts.length > 0) ? model.parts : [
+                    { partName: 'Спинка' },
+                    { partName: 'Рукава' },
+                    { partName: 'Воротник' },
+                    { partName: 'Бейка' },
+                    { partName: 'Полка' }
+                ];
+                
+                parts.forEach((part, index) => {
                     const div = document.createElement('div');
                     div.className = 'coat-part-field';
                     div.style.cssText = 'display:flex; align-items:center; gap:10px;';
