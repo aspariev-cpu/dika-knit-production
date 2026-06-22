@@ -55,7 +55,7 @@ const Model = sequelize.define('Model', {
 });
 
 // ========================================
-//  ДЕТАЛИ КОФТЫ
+//  ДЕТАЛИ МОДЕЛИ (для шапок и кофт)
 // ========================================
 
 const ModelPart = sequelize.define('ModelPart', {
@@ -76,7 +76,7 @@ const Color = sequelize.define('Color', {
 });
 
 // ========================================
-//  ЗАДАНИЯ
+//  ЗАДАНИЯ (ШАПКИ И КОФТЫ)
 // ========================================
 
 const Task = sequelize.define('Task', {
@@ -86,6 +86,13 @@ const Task = sequelize.define('Task', {
     lastPrintedAt: { type: DataTypes.DATE, defaultValue: null },
     ip: { type: DataTypes.STRING, allowNull: true, defaultValue: null },
     isCoat: { type: DataTypes.BOOLEAN, defaultValue: false },
+    // НОВОЕ ПОЛЕ: хранит детали кофты в формате JSON
+    parts: {
+        type: DataTypes.JSON,
+        defaultValue: [],
+        allowNull: true
+    },
+    // ВРЕМЕННО: оставляем для обратной совместимости, но больше не используем
     isPart: { type: DataTypes.BOOLEAN, defaultValue: false },
     partName: { type: DataTypes.STRING, allowNull: true },
     parentTaskId: { type: DataTypes.INTEGER, allowNull: true },
@@ -108,19 +115,23 @@ const Operation = sequelize.define('Operation', {
 //  СВЯЗИ
 // ========================================
 
+// Связи для модели и её деталей (оставляем без изменений)
 Model.hasMany(ModelPart, { as: 'parts', foreignKey: 'modelId' });
 ModelPart.belongsTo(Model, { foreignKey: 'modelId' });
 
+// Связи для задания
 Task.belongsTo(Model, { foreignKey: 'modelId' });
 Task.belongsTo(Color, { foreignKey: 'colorId' });
 
-Task.hasMany(Task, { as: 'parts', foreignKey: 'parentTaskId' });
-Task.belongsTo(Task, { as: 'parent', foreignKey: 'parentTaskId' });
-
+// Связь для операций (оставляем)
 Task.hasMany(Operation, { as: 'operations', foreignKey: 'taskId' });
 Operation.belongsTo(Task, { foreignKey: 'taskId' });
 Operation.belongsTo(User, { as: 'employee', foreignKey: 'employeeId' });
 Operation.belongsTo(Machine, { as: 'machine', foreignKey: 'machineId' });
+
+// ⚠️ ВРЕМЕННО: связи Task ↔ Task для обратной совместимости (будут удалены позже)
+Task.hasMany(Task, { as: 'parts_old', foreignKey: 'parentTaskId' });
+Task.belongsTo(Task, { as: 'parent', foreignKey: 'parentTaskId' });
 
 module.exports = {
     sequelize,
