@@ -1276,6 +1276,31 @@ app.post('/api/tasks/complete/:taskId', async (req, res) => {
 });
 
 // ========================================
+//  API: ПОЛУЧИТЬ ОПЕРАЦИИ (ДЛЯ МАШИНОК В РАБОТЕ)
+// ========================================
+
+app.get('/api/operations/recent', async (req, res) => {
+    try {
+        const operations = await Operation.findAll({
+            include: [
+                { 
+                    model: Task,
+                    include: [
+                        { model: Model }
+                    ]
+                },
+                { model: Machine, as: 'machine' }
+            ],
+            order: [['createdAt', 'DESC']],
+            limit: 100
+        });
+        res.json(operations);
+    } catch (err) {
+        console.error('❌ Ошибка загрузки операций:', err);
+        res.status(500).json({ error: 'Ошибка загрузки' });
+    }
+});
+// ========================================
 //  API: ОТМЕНА ОПЕРАЦИИ (С ЛОГАМИ)
 // ========================================
 
