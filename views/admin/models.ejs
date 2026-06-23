@@ -40,7 +40,6 @@
                     <option value="14">14</option>
                 </select>
                 
-                <!-- ПОЛЕ "ПРЯЖА" — ВИДНО ВСЕГДА, НО СКРЫВАЕТСЯ ДЛЯ КОФТ -->
                 <input type="text" name="yarn" id="yarnInput" placeholder="Пряжа (Alize 100% хлопок)" required>
                 
                 <div style="grid-column: 1/-1;">
@@ -56,7 +55,7 @@
                     <label for="isCoat" style="font-weight:600;">🧥 Это кофта (несколько деталей)</label>
                 </div>
 
-                <!-- БЛОК ДЕТАЛЕЙ КОФТЫ (БЕЗ SIZE И CLASS) -->
+                <!-- БЛОК ДЕТАЛЕЙ КОФТЫ -->
                 <div id="coatParts" style="display:none; grid-column: 1/-1; background:rgba(255,255,255,0.03); padding:20px; border-radius:10px; margin-top:10px;">
                     <h3 style="color:#c9a959; margin-bottom:15px;">🧵 Детали кофты</h3>
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:8px; margin-bottom:10px; align-items:center;">
@@ -73,7 +72,6 @@
                             <input type="text" name="part_yarn_<%= index %>" placeholder="Пряжа" style="padding:6px 8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff;">
                             <textarea name="part_image_<%= index %>" class="part-image-input" placeholder="Вставьте фото (Ctrl+V)" style="min-height:40px; padding:6px 8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff; font-family:inherit;"></textarea>
                         </div>
-                        <!-- Превью для фото детали -->
                         <div id="partPreview_<%= index %>" style="display:none; margin-top:5px; margin-bottom:10px; grid-column:1/-1;">
                             <img id="partPreviewImg_<%= index %>" src="" alt="Предпросмотр детали" style="max-width:150px; border-radius:8px; border:1px solid rgba(201,169,89,0.2);">
                         </div>
@@ -176,9 +174,13 @@
                     <input type="text" name="yarn" id="editYarn" required style="width:100%; padding:12px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff;">
                 </div>
                 
+                <!-- ✅ ИСПРАВЛЕНО: ТЕПЕРЬ ТЕКСТАРЕА ДЛЯ ВСТАВКИ ФОТО -->
                 <div class="form-group" style="grid-column:1/3;">
-                    <label style="color:#8892b0; font-size:12px;">Ссылка на фото</label>
-                    <input type="text" name="image" id="editImage" style="width:100%; padding:12px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff;">
+                    <label style="color:#8892b0; font-size:12px;">Фото модели (Ctrl+V)</label>
+                    <textarea name="image" id="editImage" placeholder="Вставьте фото сюда (Ctrl+V)" style="width:100%; min-height:80px; padding:12px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:10px; color:#fff; font-family:inherit;"></textarea>
+                    <div id="editImagePreview" style="margin-top:10px; max-width:150px; display:none;">
+                        <img id="editPreviewImg" src="" alt="Предпросмотр" style="max-width:100%; border-radius:8px;">
+                    </div>
                 </div>
                 
                 <div class="form-group" style="grid-column:1/3; display:flex; align-items:center; gap:10px;">
@@ -206,7 +208,7 @@
     <!-- СКРИПТЫ                                   -->
     <!-- ======================================== -->
     <script>
-        // ---------- ВСТАВКА ФОТО (Ctrl+V) ДЛЯ ОСНОВНОЙ МОДЕЛИ ----------
+        // ---------- ВСТАВКА ФОТО (Ctrl+V) ДЛЯ ОСНОВНОЙ МОДЕЛИ (СОЗДАНИЕ) ----------
         document.getElementById('imageInput').addEventListener('paste', function(e) {
             const items = e.clipboardData.items;
             for (let item of items) {
@@ -219,6 +221,26 @@
                         img.src = event.target.result;
                         preview.style.display = 'block';
                         document.getElementById('imageInput').value = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        // ---------- ВСТАВКА ФОТО (Ctrl+V) ДЛЯ РЕДАКТИРОВАНИЯ МОДЕЛИ ----------
+        document.getElementById('editImage').addEventListener('paste', function(e) {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const preview = document.getElementById('editImagePreview');
+                        const img = document.getElementById('editPreviewImg');
+                        img.src = event.target.result;
+                        preview.style.display = 'block';
+                        document.getElementById('editImage').value = event.target.result;
+                        showNotification('✅ Фото модели вставлено!', 'success');
                     };
                     reader.readAsDataURL(file);
                 }
@@ -331,6 +353,14 @@
                     document.getElementById('editImage').value = model.image || '';
                     document.getElementById('editIsCoat').checked = model.isCoat || false;
                     
+                    // Показываем превью если есть фото
+                    if (model.image) {
+                        const preview = document.getElementById('editImagePreview');
+                        const img = document.getElementById('editPreviewImg');
+                        img.src = model.image;
+                        preview.style.display = 'block';
+                    }
+                    
                     const form = document.getElementById('editForm');
                     form.action = '/api/models/edit/' + modelId;
                     
@@ -375,7 +405,7 @@
             document.getElementById('editPartsContainer').style.display = show ? 'block' : 'none';
         }
 
-        // ---------- ОСНОВНАЯ ФУНКЦИЯ ДОБАВЛЕНИЯ ПОЛЯ ДЛЯ ДЕТАЛЕЙ (С ВСТАВКОЙ ФОТО) ----------
+        // ---------- ФУНКЦИЯ ДОБАВЛЕНИЯ ПОЛЯ ДЛЯ ДЕТАЛЕЙ (С ВСТАВКОЙ ФОТО) ----------
         function addEditPartField(index, data) {
             const container = document.getElementById('editPartsFields');
             const div = document.createElement('div');
@@ -396,7 +426,7 @@
             `;
             container.appendChild(div);
             
-            // ---------- ДОБАВЛЯЕМ ОБРАБОТЧИК ДЛЯ ВСТАВКИ ФОТО ----------
+            // ОБРАБОТЧИК ДЛЯ ВСТАВКИ ФОТО В ДЕТАЛИ
             const textarea = div.querySelector('.edit-part-image-input');
             const previewDiv = div.querySelector(`#editPartPreview_${index}`);
             const previewImg = div.querySelector(`#editPartPreviewImg_${index}`);
@@ -439,7 +469,7 @@
             if (event.target === modal) closeEditModal();
         };
 
-        // ---------- ДОБАВЛЯЕМ СТИЛИ ДЛЯ АНИМАЦИЙ УВЕДОМЛЕНИЙ ----------
+        // ---------- СТИЛИ ДЛЯ АНИМАЦИЙ УВЕДОМЛЕНИЙ ----------
         const styleSheet = document.createElement('style');
         styleSheet.textContent = `
             @keyframes slideInRight {
