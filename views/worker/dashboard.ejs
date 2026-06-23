@@ -465,6 +465,42 @@
             color: #8892b0;
             font-size: 14px;
         }
+        .machines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .machine-card {
+            background: rgba(255,255,255,0.04);
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(201,169,89,0.08);
+        }
+        .machine-card .machine-number {
+            font-weight: 700;
+            color: #c9a959;
+            font-size: 18px;
+        }
+        .machine-card .machine-model {
+            color: #fff;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        .machine-card .machine-time {
+            color: #8892b0;
+            font-size: 12px;
+        }
+        .machine-card .machine-quantity {
+            color: #8892b0;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .machines-empty {
+            color: #8892b0;
+            padding: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -626,144 +662,176 @@
                             </div>
                         </div>
                     <% }); %>
+
+                    <!-- ======================================== -->
+                    <!-- МАШИНКИ В РАБОТЕ (ШАПКИ)                  -->
+                    <!-- ======================================== -->
+                    <div class="section" id="machinesShapkiSection" style="margin-top:20px;">
+                        <div class="section-header" onclick="toggleSection('machinesShapki')">
+                            <span class="toggle-btn" id="machinesShapkiToggle">−</span>
+                            <span class="section-title">🖥️ Машинки в работе (шапки)</span>
+                            <span class="section-count" id="machinesShapkiCount">0</span>
+                        </div>
+                        <div class="section-body" id="machinesShapkiBody">
+                            <div id="machinesShapkiList" class="machines-grid">
+                                <div class="machines-empty">⏳ Загрузка...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         <% } %>
 
-      <!-- ======================================== -->
-<!-- СЕКЦИЯ: КОФТЫ                            -->
-<!-- ======================================== -->
-<% if (hasCoat) { %>
-    <div class="section" id="coatSection">
-        <div class="section-header" onclick="toggleSection('coat')">
-            <span class="toggle-btn" id="coatToggle">−</span>
-            <span class="section-title">🧥 Кофты</span>
-            <span class="section-count"><%= coatTasks.length %> заказа(ов)</span>
-        </div>
-        <div class="section-body" id="coatBody">
-            <% classOrder.forEach(className => { 
-                const taskList = coatByClass[className] || [];
-                if (taskList.length === 0) return;
-            %>
-                <div class="class-block">
-                    <div class="class-header">
-                        <span class="class-title">🔧 Класс <%= className %></span>
-                        <span class="class-count"><%= taskList.length %> заказа(ов)</span>
-                    </div>
-                    <div class="tasks-grid">
-                        <% taskList.forEach(coat => { 
-                            const parts = coat.parts || [];
-                            const coatTotal = getCoatTotal(coat);
-                            const totalDone = coatTotal.totalDone;
-                            const totalPlan = coatTotal.totalPlan;
-                            const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
-                            const isCompleted = percent >= 100;
-                        %>
-                            <div class="task-card <%= coat.isUrgent ? 'urgent' : '' %>" 
-                                 data-task-id="<%= coat.id %>" 
-                                 data-last-printed="<%= coat.lastPrintedAt || '' %>"
-                                 data-ip="<%= coat.ip || '' %>"
-                                 data-urgent="<%= coat.isUrgent ? 'true' : 'false' %>">
-                                <div class="task-content">
-                                    <div class="task-top">
-                                        <% if (coat.Model && coat.Model.image) { %>
-                                            <div class="task-image">
-                                                <img src="<%= coat.Model.image %>" alt="Фото" onclick="openImageModal('<%= coat.Model.image %>')">
-                                            </div>
-                                        <% } %>
-                                        <div class="task-info">
-                                            <div class="task-title">
-                                                <%= coat.isUrgent ? '🔥 ' : '' %><%= coat.Model ? coat.Model.name : '—' %>
-                                            </div>
-                                            <div class="task-meta">
-                                                <span>📄 <strong><%= coat.Model ? coat.Model.program : '—' %></strong></span>
-                                                <span>📏 <strong><%= coat.Model ? coat.Model.size : '—' %></strong></span>
-                                                <span>🎨 <strong><%= coat.Color ? coat.Color.name : '—' %></strong></span>
-                                            </div>
-                                            <div class="task-meta" style="margin-top:2px;">
-                                                🧵 Пряжа: <strong><%= coat.Model ? coat.Model.yarn : '—' %></strong>
-                                            </div>
-                                            <div class="task-meta" style="margin-top:2px;">
-                                                🏢 ИП: <strong><%= coat.ip || '—' %></strong>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="task-progress-block">
-                                        <div class="progress-label">
-                                            <span>Общий прогресс</span>
-                                            <span id="progress-text-<%= coat.id %>"><strong style="color: #fff;" id="done-<%= coat.id %>"><%= totalDone %></strong> из <strong style="color: #c9a959;"><%= totalPlan %></strong> шт. (<span id="percent-<%= coat.id %>"><%= Math.round(percent) %></span>%)</span>
-                                        </div>
-                                        <div class="progress-bar">
-                                            <div id="progress-fill-<%= coat.id %>" class="progress-fill" style="width:<%= percent %>%;"></div>
-                                        </div>
-                                    </div>
-
-                                    <% if (parts.length > 0) { %>
-                                        <div class="coat-parts-container">
-                                            <div class="coat-parts-title">🧵 Детали кофты</div>
-                                            <% parts.forEach((part, index) => { 
-                                                const partDone = part.doneQuantity || 0;
-                                                const partPercent = part.planQuantity > 0 ? Math.min((partDone / part.planQuantity) * 100, 100) : 0;
-                                                const partName = part.partName || part.Model?.name || 'Деталь';
-                                            %>
-                                                <div class="part-block" data-part-id="<%= part.id %>" data-part-index="<%= index %>">
-                                                    <div class="part-header">
-                                                        <span class="part-name"><%= partName %></span>
-                                                        <span class="part-program"><%= part.Model ? part.Model.program : '—' %></span>
+        <!-- ======================================== -->
+        <!-- СЕКЦИЯ: КОФТЫ                            -->
+        <!-- ======================================== -->
+        <% if (hasCoat) { %>
+            <div class="section" id="coatSection">
+                <div class="section-header" onclick="toggleSection('coat')">
+                    <span class="toggle-btn" id="coatToggle">−</span>
+                    <span class="section-title">🧥 Кофты</span>
+                    <span class="section-count"><%= coatTasks.length %> заказа(ов)</span>
+                </div>
+                <div class="section-body" id="coatBody">
+                    <% classOrder.forEach(className => { 
+                        const taskList = coatByClass[className] || [];
+                        if (taskList.length === 0) return;
+                    %>
+                        <div class="class-block">
+                            <div class="class-header">
+                                <span class="class-title">🔧 Класс <%= className %></span>
+                                <span class="class-count"><%= taskList.length %> заказа(ов)</span>
+                            </div>
+                            <div class="tasks-grid">
+                                <% taskList.forEach(coat => { 
+                                    const parts = coat.parts || [];
+                                    const coatTotal = getCoatTotal(coat);
+                                    const totalDone = coatTotal.totalDone;
+                                    const totalPlan = coatTotal.totalPlan;
+                                    const percent = totalPlan > 0 ? Math.min((totalDone / totalPlan) * 100, 100) : 0;
+                                    const isCompleted = percent >= 100;
+                                %>
+                                    <div class="task-card <%= coat.isUrgent ? 'urgent' : '' %>" 
+                                         data-task-id="<%= coat.id %>" 
+                                         data-last-printed="<%= coat.lastPrintedAt || '' %>"
+                                         data-ip="<%= coat.ip || '' %>"
+                                         data-urgent="<%= coat.isUrgent ? 'true' : 'false' %>">
+                                        <div class="task-content">
+                                            <div class="task-top">
+                                                <% if (coat.Model && coat.Model.image) { %>
+                                                    <div class="task-image">
+                                                        <img src="<%= coat.Model.image %>" alt="Фото" onclick="openImageModal('<%= coat.Model.image %>')">
                                                     </div>
-                                                    <div class="part-progress">
-                                                        <span>Выполнено: <span class="value"><%= partDone %>/<%= part.planQuantity %></span></span>
-                                                        <span><%= Math.round(partPercent) %>%</span>
+                                                <% } %>
+                                                <div class="task-info">
+                                                    <div class="task-title">
+                                                        <%= coat.isUrgent ? '🔥 ' : '' %><%= coat.Model ? coat.Model.name : '—' %>
                                                     </div>
-                                                    <div class="part-progress-bar">
-                                                        <div class="fill" style="width:<%= partPercent %>%;"></div>
+                                                    <div class="task-meta">
+                                                        <span>📄 <strong><%= coat.Model ? coat.Model.program : '—' %></strong></span>
+                                                        <span>📏 <strong><%= coat.Model ? coat.Model.size : '—' %></strong></span>
+                                                        <span>🎨 <strong><%= coat.Color ? coat.Color.name : '—' %></strong></span>
                                                     </div>
-                                                    <div class="part-actions">
-                                                        <form class="part-form" onsubmit="event.preventDefault(); submitOperationPart(this, '<%= part.id %>')">
-                                                            <input type="hidden" name="coatId" value="<%= coat.id %>">
-                                                            <input type="hidden" name="partId" value="<%= part.id %>">
-                                                            <div class="form-group">
-                                                                <label>Станок</label>
-                                                                <select name="machineId" required>
-                                                                    <option value="">Выбрать</option>
-                                                                    <% for (let i = 1; i <= 15; i++) { %>
-                                                                        <option value="<%= i %>">№<%= i %></option>
-                                                                    <% } %>
-                                                                </select>
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label>Кол-во</label>
-                                                                <input type="number" name="quantity" placeholder="шт." min="1" required style="width:60px;">
-                                                            </div>
-                                                            <button type="submit" class="btn btn-save">💾 Сохранить</button>
-                                                        </form>
-                                                        <button class="btn btn-print" onclick="printPartLabel(<%= part.id %>, '<%= partName.replace(/'/g, "\\'") %>')">🖨️ Печать</button>
-                                                        <% if (part.operations && part.operations.length > 0) { %>
-                                                            <button class="btn btn-undo" onclick="undoOperation(<%= part.id %>)">↩️ Отменить</button>
-                                                        <% } %>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🧵 Пряжа: <strong><%= coat.Model ? coat.Model.yarn : '—' %></strong>
+                                                    </div>
+                                                    <div class="task-meta" style="margin-top:2px;">
+                                                        🏢 ИП: <strong><%= coat.ip || '—' %></strong>
                                                     </div>
                                                 </div>
-                                            <% }); %>
-                                        </div>
-                                    <% } %>
+                                            </div>
 
-                                    <% if (isCompleted && coat.status !== 'completed') { %>
-                                        <div class="send-btn-container">
-                                            <button id="send-btn-<%= coat.id %>" class="btn-send-admin" onclick="sendToAdmin(<%= coat.id %>)">
-                                                📤 Отправить админу
-                                            </button>
+                                            <div class="task-progress-block">
+                                                <div class="progress-label">
+                                                    <span>Общий прогресс</span>
+                                                    <span id="progress-text-<%= coat.id %>"><strong style="color: #fff;" id="done-<%= coat.id %>"><%= totalDone %></strong> из <strong style="color: #c9a959;"><%= totalPlan %></strong> шт. (<span id="percent-<%= coat.id %>"><%= Math.round(percent) %></span>%)</span>
+                                                </div>
+                                                <div class="progress-bar">
+                                                    <div id="progress-fill-<%= coat.id %>" class="progress-fill" style="width:<%= percent %>%;"></div>
+                                                </div>
+                                            </div>
+
+                                            <% if (parts.length > 0) { %>
+                                                <div class="coat-parts-container">
+                                                    <div class="coat-parts-title">🧵 Детали кофты</div>
+                                                    <% parts.forEach((part, index) => { 
+                                                        const partDone = part.doneQuantity || 0;
+                                                        const partPercent = part.planQuantity > 0 ? Math.min((partDone / part.planQuantity) * 100, 100) : 0;
+                                                        const partName = part.partName || part.Model?.name || 'Деталь';
+                                                    %>
+                                                        <div class="part-block" data-part-id="<%= part.id %>" data-part-index="<%= index %>">
+                                                            <div class="part-header">
+                                                                <span class="part-name"><%= partName %></span>
+                                                                <span class="part-program"><%= part.Model ? part.Model.program : '—' %></span>
+                                                            </div>
+                                                            <div class="part-progress">
+                                                                <span>Выполнено: <span class="value"><%= partDone %>/<%= part.planQuantity %></span></span>
+                                                                <span><%= Math.round(partPercent) %>%</span>
+                                                            </div>
+                                                            <div class="part-progress-bar">
+                                                                <div class="fill" style="width:<%= partPercent %>%;"></div>
+                                                            </div>
+                                                            <div class="part-actions">
+                                                                <form class="part-form" onsubmit="event.preventDefault(); submitOperationPart(this, '<%= part.id %>')">
+                                                                    <input type="hidden" name="coatId" value="<%= coat.id %>">
+                                                                    <input type="hidden" name="partId" value="<%= part.id %>">
+                                                                    <div class="form-group">
+                                                                        <label>Станок</label>
+                                                                        <select name="machineId" required>
+                                                                            <option value="">Выбрать</option>
+                                                                            <% for (let i = 1; i <= 15; i++) { %>
+                                                                                <option value="<%= i %>">№<%= i %></option>
+                                                                            <% } %>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="form-group">
+                                                                        <label>Кол-во</label>
+                                                                        <input type="number" name="quantity" placeholder="шт." min="1" required style="width:60px;">
+                                                                    </div>
+                                                                    <button type="submit" class="btn btn-save">💾 Сохранить</button>
+                                                                </form>
+                                                                <button class="btn btn-print" onclick="printPartLabel(<%= part.id %>, '<%= partName.replace(/'/g, "\\'") %>')">🖨️ Печать</button>
+                                                                <% if (part.operations && part.operations.length > 0) { %>
+                                                                    <button class="btn btn-undo" onclick="undoOperation(<%= part.id %>)">↩️ Отменить</button>
+                                                                <% } %>
+                                                            </div>
+                                                        </div>
+                                                    <% }); %>
+                                                </div>
+                                            <% } %>
+
+                                            <% if (isCompleted && coat.status !== 'completed') { %>
+                                                <div class="send-btn-container">
+                                                    <button id="send-btn-<%= coat.id %>" class="btn-send-admin" onclick="sendToAdmin(<%= coat.id %>)">
+                                                        📤 Отправить админу
+                                                    </button>
+                                                </div>
+                                            <% } %>
                                         </div>
-                                    <% } %>
-                                </div>
+                                    </div>
+                                <% }); %>
                             </div>
-                        <% }); %>
+                        </div>
+                    <% }); %>
+
+                    <!-- ======================================== -->
+                    <!-- МАШИНКИ В РАБОТЕ (КОФТЫ)                  -->
+                    <!-- ======================================== -->
+                    <div class="section" id="machinesCoatSection" style="margin-top:20px;">
+                        <div class="section-header" onclick="toggleSection('machinesCoat')">
+                            <span class="toggle-btn" id="machinesCoatToggle">−</span>
+                            <span class="section-title">🖥️ Машинки в работе (кофты)</span>
+                            <span class="section-count" id="machinesCoatCount">0</span>
+                        </div>
+                        <div class="section-body" id="machinesCoatBody">
+                            <div id="machinesCoatList" class="machines-grid">
+                                <div class="machines-empty">⏳ Загрузка...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            <% }); %>
-        </div>
-    </div>
-<% } %>
+            </div>
+        <% } %>
 
     <!-- ========== МОДАЛЬНЫЕ ОКНА ========== -->
     <div id="imageModal" class="modal" style="display: none;">
@@ -816,7 +884,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const sections = ['shapki', 'coat'];
+            const sections = ['shapki', 'coat', 'machinesShapki', 'machinesCoat'];
             sections.forEach(section => {
                 const body = document.getElementById(section + 'Body');
                 const toggle = document.getElementById(section + 'Toggle');
@@ -831,6 +899,9 @@
                     }
                 }
             });
+            
+            // Загружаем станки в работе
+            loadMachinesInWork();
         });
 
         // ========================================
@@ -856,6 +927,97 @@
                 printModal.style.display = 'none';
             }
         };
+
+        // ========================================
+        //  ЗАГРУЗКА МАШИНОК В РАБОТЕ
+        // ========================================
+        async function loadMachinesInWork() {
+            try {
+                const response = await fetch('/api/operations/recent');
+                if (!response.ok) {
+                    console.error('❌ Ошибка загрузки операций');
+                    return;
+                }
+                
+                const operations = await response.json();
+                
+                // Группируем по станкам
+                const machinesShapki = {};
+                const machinesCoat = {};
+                
+                operations.forEach(op => {
+                    const machineNum = op.machineId;
+                    if (!machineNum) return;
+                    
+                    const isCoat = op.Task?.Model?.isCoat || false;
+                    const modelName = op.Task?.Model?.name || 'Неизвестно';
+                    const partName = op.partName || '';
+                    
+                    const key = machineNum;
+                    const data = {
+                        machineNumber: machineNum,
+                        modelName: modelName,
+                        partName: partName,
+                        quantity: op.quantity || 0,
+                        lastUpdated: op.createdAt
+                    };
+                    
+                    if (isCoat) {
+                        if (!machinesCoat[key]) {
+                            machinesCoat[key] = data;
+                        } else {
+                            machinesCoat[key].quantity += data.quantity;
+                        }
+                    } else {
+                        if (!machinesShapki[key]) {
+                            machinesShapki[key] = data;
+                        } else {
+                            machinesShapki[key].quantity += data.quantity;
+                        }
+                    }
+                });
+                
+                // Отображаем станки для шапок
+                renderMachinesList('machinesShapkiList', Object.values(machinesShapki));
+                document.getElementById('machinesShapkiCount').textContent = Object.keys(machinesShapki).length;
+                
+                // Отображаем станки для кофт
+                renderMachinesList('machinesCoatList', Object.values(machinesCoat));
+                document.getElementById('machinesCoatCount').textContent = Object.keys(machinesCoat).length;
+                
+            } catch (err) {
+                console.error('❌ Ошибка загрузки станков:', err);
+            }
+        }
+
+        function renderMachinesList(containerId, machines) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (machines.length === 0) {
+                container.innerHTML = `<div class="machines-empty">⏳ Нет активных станков</div>`;
+                return;
+            }
+            
+            // Сортируем по номеру станка
+            machines.sort((a, b) => a.machineNumber - b.machineNumber);
+            
+            container.innerHTML = machines.map(m => {
+                const partText = m.partName ? ` — ${m.partName}` : '';
+                const time = new Date(m.lastUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                
+                return `
+                    <div class="machine-card">
+                        <div>
+                            <span class="machine-number">№${m.machineNumber}</span>
+                            <span class="machine-model">${m.modelName}${partText}</span>
+                            <span class="machine-time">${time}</span>
+                        </div>
+                        <div class="machine-quantity">🧶 ${m.quantity} шт.</div>
+                    </div>
+                `;
+            }).join('');
+        }
 
         // ========================================
         //  ОТПРАВКА ВЫРАБОТКИ (ШАПКИ)
@@ -909,6 +1071,9 @@
                     
                     showNotification(`✅ +${data.quantity} шт.`, 'success');
                     form.querySelector('input[name="quantity"]').value = '';
+                    
+                    // Обновляем список станков
+                    loadMachinesInWork();
                 } else {
                     alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
                 }
@@ -921,92 +1086,91 @@
         }
 
         // ========================================
-//  ОТПРАВКА ВЫРАБОТКИ (ДЕТАЛИ КОФТЫ) - ИСПРАВЛЕННАЯ
-// ========================================
-async function submitOperationPart(form, partId) {
-    const formData = new FormData(form);
-    
-    // НАХОДИМ КАРТОЧКУ КОФТЫ
-    const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
-    const taskCard = partBlock?.closest('.task-card');
-    const coatId = taskCard?.dataset.taskId;
-    
-    if (!coatId) {
-        alert('❌ ID кофты не найден');
-        return;
-    }
-    
-    const data = {
-        taskId: coatId,        // ← ID кофты (для поиска)
-        partId: partId,        // ← ID детали (для сохранения операции)
-        machineId: formData.get('machineId'),
-        quantity: formData.get('quantity')
-    };
-
-    const btn = form.querySelector('button[type="submit"]');
-    const originalText = btn.textContent;
-    btn.textContent = '⏳...';
-    btn.disabled = true;
-
-    try {
-        const response = await fetch('/api/operations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await response.json();
-
-        if (result.success) {
-            // Обновляем прогресс детали
-            if (partBlock) {
-                const progressText = partBlock.querySelector('.part-progress .value');
-                const percentText = partBlock.querySelector('.part-progress span:last-child');
-                const progressFillBar = partBlock.querySelector('.part-progress-bar .fill');
-                const partPercent = Math.min((result.totalDone / result.planQuantity) * 100, 100);
-                if (progressText) progressText.textContent = `${result.totalDone}/${result.planQuantity}`;
-                if (percentText) percentText.textContent = `${Math.round(partPercent)}%`;
-                if (progressFillBar) progressFillBar.style.width = partPercent + '%';
-            }
-
-            // Обновляем общий прогресс кофты
-            if (result.parentProgress) {
-                updateCoatProgress(coatId, result.parentProgress);
-            }
-
-            // Показываем предпросмотр
-            const modelName = taskCard?.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
-            const color = taskCard?.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
-            const program = partBlock?.querySelector('.part-program')?.textContent?.trim() || '—';
-            const size = taskCard?.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
-            const className = taskCard?.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
-            const partName = partBlock?.querySelector('.part-name')?.textContent?.trim() || 'Деталь';
+        //  ОТПРАВКА ВЫРАБОТКИ (ДЕТАЛИ КОФТЫ)
+        // ========================================
+        async function submitOperationPart(form, partId) {
+            const formData = new FormData(form);
             
-            showPreview({
-                modelName: modelName,
-                partName: partName,
-                quantity: data.quantity,
-                program: program,
-                size: size,
-                color: color,
-                className: className,
-                yarn: taskCard?.querySelector('.task-meta strong')?.textContent?.trim() || '—',
-                taskId: data.taskId,
-                operationId: result.operationId,
-                machineId: result.machineId
-            });
+            const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
+            const taskCard = partBlock?.closest('.task-card');
+            const coatId = taskCard?.dataset.taskId;
+            
+            if (!coatId) {
+                alert('❌ ID кофты не найден');
+                return;
+            }
+            
+            const data = {
+                taskId: coatId,
+                partId: partId,
+                machineId: formData.get('machineId'),
+                quantity: formData.get('quantity')
+            };
 
-            showNotification(`✅ +${data.quantity} шт. для детали`, 'success');
-            form.querySelector('input[name="quantity"]').value = '';
-        } else {
-            alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = '⏳...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/operations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    if (partBlock) {
+                        const progressText = partBlock.querySelector('.part-progress .value');
+                        const percentText = partBlock.querySelector('.part-progress span:last-child');
+                        const progressFillBar = partBlock.querySelector('.part-progress-bar .fill');
+                        const partPercent = Math.min((result.totalDone / result.planQuantity) * 100, 100);
+                        if (progressText) progressText.textContent = `${result.totalDone}/${result.planQuantity}`;
+                        if (percentText) percentText.textContent = `${Math.round(partPercent)}%`;
+                        if (progressFillBar) progressFillBar.style.width = partPercent + '%';
+                    }
+
+                    if (result.parentProgress) {
+                        updateCoatProgress(coatId, result.parentProgress);
+                    }
+
+                    const modelName = taskCard?.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+                    const color = taskCard?.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+                    const program = partBlock?.querySelector('.part-program')?.textContent?.trim() || '—';
+                    const size = taskCard?.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+                    const className = taskCard?.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+                    const partName = partBlock?.querySelector('.part-name')?.textContent?.trim() || 'Деталь';
+                    
+                    showPreview({
+                        modelName: modelName,
+                        partName: partName,
+                        quantity: data.quantity,
+                        program: program,
+                        size: size,
+                        color: color,
+                        className: className,
+                        yarn: taskCard?.querySelector('.task-meta strong')?.textContent?.trim() || '—',
+                        taskId: data.taskId,
+                        operationId: result.operationId,
+                        machineId: result.machineId
+                    });
+
+                    showNotification(`✅ +${data.quantity} шт. для детали`, 'success');
+                    form.querySelector('input[name="quantity"]').value = '';
+                    
+                    // Обновляем список станков
+                    loadMachinesInWork();
+                } else {
+                    alert('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+                }
+            } catch (err) {
+                alert('❌ Ошибка: ' + err.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
         }
-    } catch (err) {
-        alert('❌ Ошибка: ' + err.message);
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
-}
 
         // ========================================
         //  ОБНОВЛЕНИЕ ПРОГРЕССА ЗАДАНИЯ
@@ -1055,432 +1219,426 @@ async function submitOperationPart(form, partId) {
         }
 
         // ========================================
-//  ПРЕДПРОСМОТР (исправленный)
-// ========================================
-let pendingPrintData = null; // сохраняем данные для печати
+        //  ПРЕДПРОСМОТР
+        // ========================================
+        let pendingPrintData = null;
 
-function showPreview(data) {
-    const modal = document.getElementById('printPreviewModal');
-    document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
-    document.getElementById('previewDetails').innerHTML = `
-        Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
-        Программа: ${data.program || '—'}<br>
-        Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
-    `;
-    document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
-    
-    // Сохраняем данные для печати
-    pendingPrintData = data;
-    modal.dataset.taskId = data.taskId;
-    modal.dataset.operationId = data.operationId;
-    modal.dataset.quantity = data.quantity;
-    modal.style.display = 'flex';
-    
-    // Кнопка печати
-    document.getElementById('printPreviewBtn').onclick = function() {
-        const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
-        printLabelWithQuantity(modal.dataset.taskId, quantity);
-        modal.style.display = 'none';
-        showNotification('🖨️ Этикетка отправлена на печать', 'success');
-    };
-    
-    // Кнопка закрыть
-    document.getElementById('printPreviewCloseBtn').onclick = function() {
-        modal.style.display = 'none';
-        showNotification('💾 Выработка сохранена', 'info');
-    };
-}
+        function showPreview(data) {
+            const modal = document.getElementById('printPreviewModal');
+            document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
+            document.getElementById('previewDetails').innerHTML = `
+                Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
+                Программа: ${data.program || '—'}<br>
+                Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
+            `;
+            document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
+            
+            pendingPrintData = data;
+            modal.dataset.taskId = data.taskId;
+            modal.dataset.operationId = data.operationId;
+            modal.dataset.quantity = data.quantity;
+            modal.style.display = 'flex';
+            
+            document.getElementById('printPreviewBtn').onclick = function() {
+                const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
+                printLabelWithQuantity(modal.dataset.taskId, quantity);
+                modal.style.display = 'none';
+                showNotification('🖨️ Этикетка отправлена на печать', 'success');
+            };
+            
+            document.getElementById('printPreviewCloseBtn').onclick = function() {
+                modal.style.display = 'none';
+                showNotification('💾 Выработка сохранена', 'info');
+            };
+        }
 
-// ========================================
-//  ПЕЧАТЬ С ЗАДАННЫМ КОЛИЧЕСТВОМ
-// ========================================
-function printLabelWithQuantity(taskId, quantity) {
-    const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
-    if (!taskCard) {
-        alert('❌ Задание не найдено');
-        return;
-    }
-    
-    const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
-    const color = taskCard.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
-    const program = taskCard.querySelector('.task-meta span:nth-child(1)')?.textContent?.replace('📄', '').trim() || '—';
-    const size = taskCard.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
-    const className = taskCard.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
-    const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
-    const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
-    const ip = taskCard.dataset.ip || '—';
-    const isUrgent = taskCard.dataset.urgent === 'true';
-    
-    // Используем переданное количество
-    const qty = quantity || '0';
-    
-    // Для шапок берем станок из формы
-    const machineSelect = taskCard.querySelector('select[name="machineId"]');
-    const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
+        // ========================================
+        //  ПЕЧАТЬ С ЗАДАННЫМ КОЛИЧЕСТВОМ
+        // ========================================
+        function printLabelWithQuantity(taskId, quantity) {
+            const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+            if (!taskCard) {
+                alert('❌ Задание не найдено');
+                return;
+            }
+            
+            const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+            const color = taskCard.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+            const program = taskCard.querySelector('.task-meta span:nth-child(1)')?.textContent?.replace('📄', '').trim() || '—';
+            const size = taskCard.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+            const className = taskCard.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+            const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
+            const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+            const ip = taskCard.dataset.ip || '—';
+            const isUrgent = taskCard.dataset.urgent === 'true';
+            
+            const qty = quantity || '0';
+            
+            const machineSelect = taskCard.querySelector('select[name="machineId"]');
+            const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
 
-    const title = modelName + ' — ' + partName;
+            const title = modelName;
 
-    const printWindow = window.open('', '_blank', 'width=400,height=300');
-    if (!printWindow) {
-        alert('❌ Разрешите всплывающие окна для печати');
-        return;
-    }
+            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            if (!printWindow) {
+                alert('❌ Разрешите всплывающие окна для печати');
+                return;
+            }
 
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Этикетка Dika Knit</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                @page { size: 56mm 32mm; margin: 0; }
-                html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 56mm;
-                    height: 32mm;
-                    background: white;
-                    display: flex;
-                    justify-content: center;
-                    align-items: flex-start;
-                    font-family: Arial, Helvetica, sans-serif;
-                }
-                .label {
-                    width: 56mm;
-                    height: 32mm;
-                    padding: 0.2mm 2.5mm 1mm 2.5mm;
-                    border: none;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-start;
-                    background: white;
-                }
-                .label .title-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 0.5px;
-                }
-                .label .model {
-                    font-size: 14px;
-                    font-weight: 700;
-                    color: #000;
-                    line-height: 1.1;
-                }
-                .label .urgent-badge {
-                    font-size: 12px;
-                    font-weight: 900;
-                    color: #f87171;
-                    white-space: nowrap;
-                    margin-left: 8px;
-                }
-                .label .quantity {
-                    font-size: 18px;
-                    font-weight: 700;
-                    color: #c9a959;
-                    margin: 0px 0 0.5px 0;
-                }
-                .label .info {
-                    font-size: 10px;
-                    color: #333;
-                    line-height: 1.2;
-                }
-                .label .info span {
-                    font-weight: 600;
-                    color: #000;
-                }
-                .label .color-dot {
-                    display: inline-block;
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 50%;
-                    vertical-align: middle;
-                    margin-right: 2px;
-                    border: 0.5px solid #ccc;
-                }
-                .label .bottom-section {
-                    margin-top: auto;
-                    border-top: 2px solid #c9a959;
-                    padding-top: 1px;
-                    text-align: center;
-                    font-size: 9px;
-                    font-weight: 800;
-                    color: #c9a959;
-                    letter-spacing: 0.5px;
-                    text-transform: uppercase;
-                }
-                @media print {
-                    html, body {
-                        margin: 0;
-                        padding: 0;
-                        width: 56mm;
-                        height: 32mm;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="label">
-                <div class="title-row">
-                    <div class="model">${title}</div>
-                    ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
-                </div>
-                <div class="quantity">${qty} шт.</div>
-                <div class="info">
-                    <span class="color-dot" style="background:${color};"></span>
-                    Цвет: <span>${color}</span> &nbsp;|&nbsp; Класс: <span>${className}</span>
-                </div>
-                <div class="info">
-                    Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
-                </div>
-                <div class="info">
-                    ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
-                </div>
-                <div class="info">
-                    Вязал: <span>${fullName}</span> &nbsp;|&nbsp; <span>${date}</span>
-                </div>
-                <div class="bottom-section">Dika Knit</div>
-            </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 500);
-                    }, 500);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Этикетка Dika Knit</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        @page { size: 56mm 32mm; margin: 0; }
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 56mm;
+                            height: 32mm;
+                            background: white;
+                            display: flex;
+                            justify-content: center;
+                            align-items: flex-start;
+                            font-family: Arial, Helvetica, sans-serif;
+                        }
+                        .label {
+                            width: 56mm;
+                            height: 32mm;
+                            padding: 0.2mm 2.5mm 1mm 2.5mm;
+                            border: none;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: flex-start;
+                            background: white;
+                        }
+                        .label .title-row {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 0.5px;
+                        }
+                        .label .model {
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: #000;
+                            line-height: 1.1;
+                        }
+                        .label .urgent-badge {
+                            font-size: 12px;
+                            font-weight: 900;
+                            color: #f87171;
+                            white-space: nowrap;
+                            margin-left: 8px;
+                        }
+                        .label .quantity {
+                            font-size: 18px;
+                            font-weight: 700;
+                            color: #c9a959;
+                            margin: 0px 0 0.5px 0;
+                        }
+                        .label .info {
+                            font-size: 10px;
+                            color: #333;
+                            line-height: 1.2;
+                        }
+                        .label .info span {
+                            font-weight: 600;
+                            color: #000;
+                        }
+                        .label .color-dot {
+                            display: inline-block;
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            vertical-align: middle;
+                            margin-right: 2px;
+                            border: 0.5px solid #ccc;
+                        }
+                        .label .bottom-section {
+                            margin-top: auto;
+                            border-top: 2px solid #c9a959;
+                            padding-top: 1px;
+                            text-align: center;
+                            font-size: 9px;
+                            font-weight: 800;
+                            color: #c9a959;
+                            letter-spacing: 0.5px;
+                            text-transform: uppercase;
+                        }
+                        @media print {
+                            html, body {
+                                margin: 0;
+                                padding: 0;
+                                width: 56mm;
+                                height: 32mm;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <div class="title-row">
+                            <div class="model">${title}</div>
+                            ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
+                        </div>
+                        <div class="quantity">${qty} шт.</div>
+                        <div class="info">
+                            <span class="color-dot" style="background:${color};"></span>
+                            Цвет: <span>${color}</span> &nbsp;|&nbsp; Класс: <span>${className}</span>
+                        </div>
+                        <div class="info">
+                            Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
+                        </div>
+                        <div class="info">
+                            ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
+                        </div>
+                        <div class="info">
+                            Вязал: <span>${fullName}</span> &nbsp;|&nbsp; <span>${date}</span>
+                        </div>
+                        <div class="bottom-section">Dika Knit</div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                setTimeout(function() { window.close(); }, 500);
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
 
-// ========================================
-//  ПЕЧАТЬ (ШАПКИ) - исправленная
-// ========================================
-function printLabel(taskId) {
-    // Берем количество из поля ввода
-    const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
-    if (!taskCard) {
-        alert('❌ Задание не найдено');
-        return;
-    }
-    
-    const quantityInput = taskCard.querySelector('input[name="quantity"]');
-    const quantity = quantityInput ? quantityInput.value || '0' : '0';
-    
-    if (quantity === '0' || quantity === '') {
-        alert('⚠️ Введите количество перед печатью');
-        return;
-    }
-    
-    printLabelWithQuantity(taskId, quantity);
-}
+        // ========================================
+        //  ПЕЧАТЬ (ШАПКИ)
+        // ========================================
+        function printLabel(taskId) {
+            const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+            if (!taskCard) {
+                alert('❌ Задание не найдено');
+                return;
+            }
+            
+            const quantityInput = taskCard.querySelector('input[name="quantity"]');
+            const quantity = quantityInput ? quantityInput.value || '0' : '0';
+            
+            if (quantity === '0' || quantity === '') {
+                alert('⚠️ Введите количество перед печатью');
+                return;
+            }
+            
+            printLabelWithQuantity(taskId, quantity);
+        }
 
-// ========================================
-//  ПЕЧАТЬ ДЛЯ ДЕТАЛЕЙ КОФТЫ - исправленная
-// ========================================
-function printPartLabel(partId, partName) {
-    const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
-    if (!partBlock) {
-        alert('❌ Деталь не найдена');
-        return;
-    }
-    
-    const taskCard = partBlock.closest('.task-card');
-    if (!taskCard) {
-        alert('❌ Задание не найдено');
-        return;
-    }
-    
-    const quantityInput = partBlock.querySelector('input[name="quantity"]');
-    const quantity = quantityInput ? quantityInput.value || '0' : '0';
-    
-    if (quantity === '0' || quantity === '') {
-        alert('⚠️ Введите количество перед печатью');
-        return;
-    }
-    
-    const coatId = taskCard.dataset.taskId;
-    printPartLabelWithQuantity(coatId, partId, partName, quantity);
-}
+        // ========================================
+        //  ПЕЧАТЬ ДЛЯ ДЕТАЛЕЙ КОФТЫ
+        // ========================================
+        function printPartLabel(partId, partName) {
+            const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
+            if (!partBlock) {
+                alert('❌ Деталь не найдена');
+                return;
+            }
+            
+            const taskCard = partBlock.closest('.task-card');
+            if (!taskCard) {
+                alert('❌ Задание не найдено');
+                return;
+            }
+            
+            const quantityInput = partBlock.querySelector('input[name="quantity"]');
+            const quantity = quantityInput ? quantityInput.value || '0' : '0';
+            
+            if (quantity === '0' || quantity === '') {
+                alert('⚠️ Введите количество перед печатью');
+                return;
+            }
+            
+            const coatId = taskCard.dataset.taskId;
+            printPartLabelWithQuantity(coatId, partId, partName, quantity);
+        }
 
-// ========================================
-//  ПЕЧАТЬ ДЕТАЛИ С ЗАДАННЫМ КОЛИЧЕСТВОМ
-// ========================================
-function printPartLabelWithQuantity(coatId, partId, partName, quantity) {
-    const taskCard = document.querySelector(`.task-card[data-task-id="${coatId}"]`);
-    if (!taskCard) {
-        alert('❌ Задание не найдено');
-        return;
-    }
-    
-    const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
-    if (!partBlock) {
-        alert('❌ Деталь не найдена');
-        return;
-    }
-    
-    const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
-    const color = taskCard.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
-    const program = partBlock.querySelector('.part-program')?.textContent?.trim() || '—';
-    const size = taskCard.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
-    const className = taskCard.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
-    const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
-    const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
-    const ip = taskCard.dataset.ip || '—';
-    const isUrgent = taskCard.dataset.urgent === 'true';
-    
-    const machineSelect = partBlock.querySelector('select[name="machineId"]');
-    const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
+        // ========================================
+        //  ПЕЧАТЬ ДЕТАЛИ С ЗАДАННЫМ КОЛИЧЕСТВОМ
+        // ========================================
+        function printPartLabelWithQuantity(coatId, partId, partName, quantity) {
+            const taskCard = document.querySelector(`.task-card[data-task-id="${coatId}"]`);
+            if (!taskCard) {
+                alert('❌ Задание не найдено');
+                return;
+            }
+            
+            const partBlock = document.querySelector(`.part-block[data-part-id="${partId}"]`);
+            if (!partBlock) {
+                alert('❌ Деталь не найдена');
+                return;
+            }
+            
+            const modelName = taskCard.querySelector('.task-title')?.textContent?.trim() || 'Неизвестно';
+            const color = taskCard.querySelector('.task-meta span:nth-child(3)')?.textContent?.replace('🎨', '').trim() || '—';
+            const program = partBlock.querySelector('.part-program')?.textContent?.trim() || '—';
+            const size = taskCard.querySelector('.task-meta span:nth-child(2)')?.textContent?.replace('📏', '').trim() || '—';
+            const className = taskCard.closest('.class-block')?.querySelector('.class-title')?.textContent?.replace('🔧 Класс', '').trim() || '—';
+            const fullName = document.querySelector('.header-user')?.textContent?.trim() || 'Вязальщик';
+            const date = new Date().toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+            const ip = taskCard.dataset.ip || '—';
+            const isUrgent = taskCard.dataset.urgent === 'true';
+            
+            const machineSelect = partBlock.querySelector('select[name="machineId"]');
+            const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
 
-    const printWindow = window.open('', '_blank', 'width=400,height=300');
-    if (!printWindow) {
-        alert('❌ Разрешите всплывающие окна для печати');
-        return;
-    }
+            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            if (!printWindow) {
+                alert('❌ Разрешите всплывающие окна для печати');
+                return;
+            }
 
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Этикетка Dika Knit - ${partName}</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                @page { size: 56mm 32mm; margin: 0; }
-                html, body {
-                    margin: 0;
-                    padding: 0;
-                    width: 56mm;
-                    height: 32mm;
-                    background: white;
-                    display: flex;
-                    justify-content: center;
-                    align-items: flex-start;
-                    font-family: Arial, Helvetica, sans-serif;
-                }
-                .label {
-                    width: 56mm;
-                    height: 32mm;
-                    padding: 0.2mm 2.5mm 1mm 2.5mm;
-                    border: none;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-start;
-                    background: white;
-                }
-                .label .title-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 0.5px;
-                }
-                .label .model {
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: #000;
-                    line-height: 1.1;
-                }
-                .label .urgent-badge {
-                    font-size: 12px;
-                    font-weight: 900;
-                    color: #f87171;
-                    white-space: nowrap;
-                    margin-left: 8px;
-                }
-                .label .quantity {
-                    font-size: 18px;
-                    font-weight: 700;
-                    color: #c9a959;
-                    margin: 0px 0 0.5px 0;
-                }
-                .label .info {
-                    font-size: 10px;
-                    color: #333;
-                    line-height: 1.2;
-                }
-                .label .info span {
-                    font-weight: 600;
-                    color: #000;
-                }
-                .label .color-dot {
-                    display: inline-block;
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 50%;
-                    vertical-align: middle;
-                    margin-right: 2px;
-                    border: 0.5px solid #ccc;
-                }
-                .label .bottom-section {
-                    margin-top: auto;
-                    border-top: 2px solid #c9a959;
-                    padding-top: 1px;
-                    text-align: center;
-                    font-size: 9px;
-                    font-weight: 800;
-                    color: #c9a959;
-                    letter-spacing: 0.5px;
-                    text-transform: uppercase;
-                }
-                .label .part-badge {
-                    display: inline-block;
-                    background: #c9a959;
-                    color: #000;
-                    font-size: 8px;
-                    font-weight: 700;
-                    padding: 0 6px;
-                    border-radius: 4px;
-                    margin-left: 4px;
-                    text-transform: uppercase;
-                }
-                @media print {
-                    html, body {
-                        margin: 0;
-                        padding: 0;
-                        width: 56mm;
-                        height: 32mm;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="label">
-                <div class="title-row">
-                    <div class="model">${modelName} <span class="part-badge">${partName}</span></div>
-                    ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
-                </div>
-                <div class="quantity">${quantity} шт.</div>
-                <div class="info">
-                    <span class="color-dot" style="background:${color};"></span>
-                    Цвет: <span>${color}</span> &nbsp;|&nbsp; Класс: <span>${className}</span>
-                </div>
-                <div class="info">
-                    Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
-                </div>
-                <div class="info">
-                    ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
-                </div>
-                <div class="info">
-                    Вязал: <span>${fullName}</span> &nbsp;|&nbsp; <span>${date}</span>
-                </div>
-                <div class="bottom-section">Dika Knit</div>
-            </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 500);
-                    }, 500);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Этикетка Dika Knit - ${partName}</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        @page { size: 56mm 32mm; margin: 0; }
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 56mm;
+                            height: 32mm;
+                            background: white;
+                            display: flex;
+                            justify-content: center;
+                            align-items: flex-start;
+                            font-family: Arial, Helvetica, sans-serif;
+                        }
+                        .label {
+                            width: 56mm;
+                            height: 32mm;
+                            padding: 0.2mm 2.5mm 1mm 2.5mm;
+                            border: none;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: flex-start;
+                            background: white;
+                        }
+                        .label .title-row {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 0.5px;
+                        }
+                        .label .model {
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: #000;
+                            line-height: 1.1;
+                        }
+                        .label .urgent-badge {
+                            font-size: 12px;
+                            font-weight: 900;
+                            color: #f87171;
+                            white-space: nowrap;
+                            margin-left: 8px;
+                        }
+                        .label .quantity {
+                            font-size: 18px;
+                            font-weight: 700;
+                            color: #c9a959;
+                            margin: 0px 0 0.5px 0;
+                        }
+                        .label .info {
+                            font-size: 10px;
+                            color: #333;
+                            line-height: 1.2;
+                        }
+                        .label .info span {
+                            font-weight: 600;
+                            color: #000;
+                        }
+                        .label .color-dot {
+                            display: inline-block;
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            vertical-align: middle;
+                            margin-right: 2px;
+                            border: 0.5px solid #ccc;
+                        }
+                        .label .bottom-section {
+                            margin-top: auto;
+                            border-top: 2px solid #c9a959;
+                            padding-top: 1px;
+                            text-align: center;
+                            font-size: 9px;
+                            font-weight: 800;
+                            color: #c9a959;
+                            letter-spacing: 0.5px;
+                            text-transform: uppercase;
+                        }
+                        .label .part-badge {
+                            display: inline-block;
+                            background: #c9a959;
+                            color: #000;
+                            font-size: 8px;
+                            font-weight: 700;
+                            padding: 0 6px;
+                            border-radius: 4px;
+                            margin-left: 4px;
+                            text-transform: uppercase;
+                        }
+                        @media print {
+                            html, body {
+                                margin: 0;
+                                padding: 0;
+                                width: 56mm;
+                                height: 32mm;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="label">
+                        <div class="title-row">
+                            <div class="model">${modelName} <span class="part-badge">${partName}</span></div>
+                            ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
+                        </div>
+                        <div class="quantity">${quantity} шт.</div>
+                        <div class="info">
+                            <span class="color-dot" style="background:${color};"></span>
+                            Цвет: <span>${color}</span> &nbsp;|&nbsp; Класс: <span>${className}</span>
+                        </div>
+                        <div class="info">
+                            Программа: <span>${program}</span> &nbsp;|&nbsp; Размер: <span>${size}</span>
+                        </div>
+                        <div class="info">
+                            ИП: <span>${ip}</span> &nbsp;|&nbsp; Станок: <span>№${machineNumber}</span>
+                        </div>
+                        <div class="info">
+                            Вязал: <span>${fullName}</span> &nbsp;|&nbsp; <span>${date}</span>
+                        </div>
+                        <div class="bottom-section">Dika Knit</div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                setTimeout(function() { window.close(); }, 500);
+                            }, 500);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
 
         // ========================================
         //  ОТМЕНА
@@ -1516,42 +1674,42 @@ function printPartLabelWithQuantity(coatId, partId, partName, quantity) {
         }
 
         // ========================================
-//  ОТПРАВИТЬ АДМИНУ (ИСПРАВЛЕННАЯ)
-// ========================================
-async function sendToAdmin(taskId) {
-    if (!confirm('Отправить задание #' + taskId + ' администратору?')) return;
-    
-    const btn = document.getElementById('send-btn-' + taskId);
-    if (btn) {
-        btn.textContent = '⏳ Отправка...';
-        btn.disabled = true;
-    }
-    
-    try {
-        const response = await fetch('/api/tasks/complete/' + taskId, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const result = await response.json();
-        
-        if (result.success) {
-            showNotification('✅ Задание #' + taskId + ' отправлено администратору!', 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            alert('❌ ' + (result.error || 'Неизвестная ошибка'));
+        //  ОТПРАВИТЬ АДМИНУ
+        // ========================================
+        async function sendToAdmin(taskId) {
+            if (!confirm('Отправить задание #' + taskId + ' администратору?')) return;
+            
+            const btn = document.getElementById('send-btn-' + taskId);
             if (btn) {
-                btn.textContent = '📤 Отправить админу';
-                btn.disabled = false;
+                btn.textContent = '⏳ Отправка...';
+                btn.disabled = true;
+            }
+            
+            try {
+                const response = await fetch('/api/tasks/complete/' + taskId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Задание #' + taskId + ' отправлено администратору!', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    alert('❌ ' + (result.error || 'Неизвестная ошибка'));
+                    if (btn) {
+                        btn.textContent = '📤 Отправить админу';
+                        btn.disabled = false;
+                    }
+                }
+            } catch (err) {
+                alert('❌ Ошибка: ' + err.message);
+                if (btn) {
+                    btn.textContent = '📤 Отправить админу';
+                    btn.disabled = false;
+                }
             }
         }
-    } catch (err) {
-        alert('❌ Ошибка: ' + err.message);
-        if (btn) {
-            btn.textContent = '📤 Отправить админу';
-            btn.disabled = false;
-        }
-    }
-}
 
         // ========================================
         //  УВЕДОМЛЕНИЯ
