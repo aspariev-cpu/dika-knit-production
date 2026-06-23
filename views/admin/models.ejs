@@ -40,7 +40,7 @@
                     <option value="14">14</option>
                 </select>
                 
-                <!-- ✅ ПОЛЕ "ПРЯЖА" — ВИДНО ВСЕГДА, НО СКРЫВАЕТСЯ ДЛЯ КОФТ -->
+                <!-- ПОЛЕ "ПРЯЖА" — ВИДНО ВСЕГДА, НО СКРЫВАЕТСЯ ДЛЯ КОФТ -->
                 <input type="text" name="yarn" id="yarnInput" placeholder="Пряжа (Alize 100% хлопок)" required>
                 
                 <div style="grid-column: 1/-1;">
@@ -225,7 +225,7 @@
             }
         });
 
-        // ---------- ВСТАВКА ФОТО ДЛЯ ДЕТАЛЕЙ КОФТЫ (Ctrl+V) ----------
+        // ---------- ВСТАВКА ФОТО ДЛЯ ДЕТАЛЕЙ КОФТЫ (СОЗДАНИЕ) ----------
         document.querySelectorAll('.part-image-input').forEach((textarea, index) => {
             textarea.addEventListener('paste', function(e) {
                 const items = e.clipboardData.items;
@@ -238,18 +238,13 @@
                         const self = this;
                         
                         reader.onload = function(event) {
-                            // Вставляем base64 в текстовое поле
                             self.value = event.target.result;
-                            
-                            // Показываем превью
                             const previewDiv = document.getElementById('partPreview_' + index);
                             const previewImg = document.getElementById('partPreviewImg_' + index);
                             if (previewDiv && previewImg) {
                                 previewImg.src = event.target.result;
                                 previewDiv.style.display = 'block';
                             }
-                            
-                            // Показываем уведомление
                             showNotification('✅ Фото детали вставлено!', 'success');
                         };
                         
@@ -269,8 +264,6 @@
         // ---------- ФУНКЦИЯ ДЛЯ УВЕДОМЛЕНИЙ ----------
         function showNotification(message, type) {
             const colors = { success: '#4ade80', error: '#f87171', info: '#c9a959' };
-            
-            // Удаляем старые уведомления
             const oldNotifications = document.querySelectorAll('.custom-notification');
             oldNotifications.forEach(el => el.remove());
             
@@ -382,6 +375,7 @@
             document.getElementById('editPartsContainer').style.display = show ? 'block' : 'none';
         }
 
+        // ---------- ОСНОВНАЯ ФУНКЦИЯ ДОБАВЛЕНИЯ ПОЛЯ ДЛЯ ДЕТАЛЕЙ (С ВСТАВКОЙ ФОТО) ----------
         function addEditPartField(index, data) {
             const container = document.getElementById('editPartsFields');
             const div = document.createElement('div');
@@ -394,10 +388,49 @@
                     <input type="text" name="part_size_${index}" placeholder="Размер" value="${data?.size || ''}" style="padding:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff;">
                     <input type="text" name="part_class_${index}" placeholder="Класс" value="${data?.className || ''}" style="padding:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff;">
                     <input type="text" name="part_yarn_${index}" placeholder="Пряжа" value="${data?.yarn || ''}" style="padding:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff; grid-column:1/3;">
-                    <input type="text" name="part_image_${index}" placeholder="Фото (URL)" value="${data?.image || ''}" style="padding:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff; grid-column:1/3;">
+                    <textarea name="part_image_${index}" class="edit-part-image-input" placeholder="Вставьте фото (Ctrl+V)" style="min-height:40px; padding:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(201,169,89,0.1); border-radius:6px; color:#fff; font-family:inherit; grid-column:1/3;">${data?.image || ''}</textarea>
+                </div>
+                <div id="editPartPreview_${index}" style="display:${data?.image ? 'block' : 'none'}; margin-top:5px; grid-column:1/3;">
+                    <img id="editPartPreviewImg_${index}" src="${data?.image || ''}" alt="Предпросмотр детали" style="max-width:150px; border-radius:8px; border:1px solid rgba(201,169,89,0.2);">
                 </div>
             `;
             container.appendChild(div);
+            
+            // ---------- ДОБАВЛЯЕМ ОБРАБОТЧИК ДЛЯ ВСТАВКИ ФОТО ----------
+            const textarea = div.querySelector('.edit-part-image-input');
+            const previewDiv = div.querySelector(`#editPartPreview_${index}`);
+            const previewImg = div.querySelector(`#editPartPreviewImg_${index}`);
+            
+            textarea.addEventListener('paste', function(e) {
+                const items = e.clipboardData.items;
+                let imageFound = false;
+                
+                for (let item of items) {
+                    if (item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        const reader = new FileReader();
+                        const self = this;
+                        
+                        reader.onload = function(event) {
+                            self.value = event.target.result;
+                            if (previewDiv && previewImg) {
+                                previewImg.src = event.target.result;
+                                previewDiv.style.display = 'block';
+                            }
+                            showNotification('✅ Фото детали вставлено!', 'success');
+                        };
+                        
+                        reader.readAsDataURL(file);
+                        imageFound = true;
+                        e.preventDefault();
+                        break;
+                    }
+                }
+                
+                if (!imageFound) {
+                    showNotification('❌ Вставьте изображение (Ctrl+V)', 'error');
+                }
+            });
         }
 
         // Закрытие модалки по клику вне окна
