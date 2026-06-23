@@ -1034,8 +1034,7 @@ if (bot) {
                 isCoat: false,
                 isPart: false,
                 partName: null,
-                parentTaskId: null
-            });
+                parentTaskId: null            });
             io.emit('newTask', task);
             // ✅ ОТПРАВКА УВЕДОМЛЕНИЯ
 if (bot) {
