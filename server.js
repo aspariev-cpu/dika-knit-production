@@ -697,37 +697,39 @@ app.get('/admin/shifts/export', async (req, res) => {
         }
         
         const regularData = operations
-            .filter(op => op.Task && op.Task.Model && !op.Task.Model.isCoat)
-            .map(op => ({
-                'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
-                'Модель': op.modelName || (op.Task && op.Task.Model ? op.Task.Model.name : '—'),
-                'Цвет': op.colorName || (op.Task && op.Task.Color ? op.Task.Color.name : '—'),
-                'Количество': op.quantity,
-                'Сотрудник': op.employee ? op.employee.fullName : '—'
-            }));
+    .filter(op => op.Task && op.Task.Model && !op.Task.Model.isCoat)
+    .map(op => ({
+        'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+        'Модель': op.modelName || (op.Task && op.Task.Model ? op.Task.Model.name : '—'),
+        'Цвет': op.colorName || (op.Task && op.Task.Color ? op.Task.Color.name : '—'),
+        'Количество': op.quantity,
+        'ИП': op.Task && op.Task.ip ? op.Task.ip : '—',
+        'Сотрудник': op.employee ? op.employee.fullName : '—'
+    }));
         
         const coatDataRaw = operations
-            .filter(op => op.Task && op.Task.Model && op.Task.Model.isCoat)
-            .map(op => {
-                const task = op.Task;
-                const model = task ? task.Model : null;
-                const parts = model && model.parts ? model.parts : [];
-                
-                const row = {
-                    'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
-                    'Модель': model ? model.name : '—',
-                    'Цвет': op.colorName || (task && task.Color ? task.Color.name : '—'),
-                    'Размер': model ? model.size : '—',
-                    'Сотрудник': op.employee ? op.employee.fullName : '—'
-                };
-                
-                parts.forEach((part, index) => {
-                    row[`Деталь ${index + 1}`] = part.partName;
-                    row[`Кол-во ${index + 1}`] = op.quantity;
-                });
-                
-                return row;
-            });
+    .filter(op => op.Task && op.Task.Model && op.Task.Model.isCoat)
+    .map(op => {
+        const task = op.Task;
+        const model = task ? task.Model : null;
+        const parts = model && model.parts ? model.parts : [];
+        
+        const row = {
+            'Дата и время': new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }),
+            'Модель': model ? model.name : '—',
+            'Цвет': op.colorName || (task && task.Color ? task.Color.name : '—'),
+            'Размер': model ? model.size : '—',
+            'ИП': task && task.ip ? task.ip : '—',
+            'Сотрудник': op.employee ? op.employee.fullName : '—'
+        };
+        
+        parts.forEach((part, index) => {
+            row[`Деталь ${index + 1}`] = part.partName;
+            row[`Кол-во ${index + 1}`] = op.quantity;
+        });
+        
+        return row;
+    });
         
         let maxParts = 0;
         coatDataRaw.forEach(row => {
@@ -760,12 +762,13 @@ app.get('/admin/shifts/export', async (req, res) => {
         if (regularData.length > 0) {
             const wsRegular = XLSX.utils.json_to_sheet(regularData);
             wsRegular['!cols'] = [
-                { wch: 20 },
-                { wch: 25 },
-                { wch: 15 },
-                { wch: 12 },
-                { wch: 20 }
-            ];
+    { wch: 20 }, // Дата и время
+    { wch: 25 }, // Модель
+    { wch: 15 }, // Цвет
+    { wch: 12 }, // Количество
+    { wch: 15 }, // ИП  ← ДОБАВИТЬ
+    { wch: 20 }  // Сотрудник
+];
             XLSX.utils.book_append_sheet(wb, wsRegular, 'Обычные');
         }
         
