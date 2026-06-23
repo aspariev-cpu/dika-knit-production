@@ -296,8 +296,8 @@ app.get('/admin/models/export', async (req, res) => {
             order: [['name', 'ASC']]
         });
 
-        if (models.length === 0) {
-            return res.send('Нет моделей для экспорта');
+        if (!models || models.length === 0) {
+            return res.status(404).send('Нет моделей для экспорта');
         }
 
         const data = [];
@@ -309,15 +309,13 @@ app.get('/admin/models/export', async (req, res) => {
                         'Программа': model.program,
                         'Размер': model.size,
                         'Класс': model.className,
-                        'Пряжа': model.yarn,
-                        'Фото': model.image || '—',
+                        'Пряжа': model.yarn || '—',
                         'Тип': 'Кофта',
                         'Деталь': part.partName,
                         'Программа детали': part.program,
-                        'Размер детали': part.size,
-                        'Класс детали': part.className,
-                        'Пряжа детали': part.yarn,
-                        'Фото детали': part.image || '—'
+                        'Размер детали': part.size || '—',
+                        'Класс детали': part.className || '—',
+                        'Пряжа детали': part.yarn || '—'
                     });
                 });
             } else {
@@ -326,15 +324,13 @@ app.get('/admin/models/export', async (req, res) => {
                     'Программа': model.program,
                     'Размер': model.size,
                     'Класс': model.className,
-                    'Пряжа': model.yarn,
-                    'Фото': model.image || '—',
+                    'Пряжа': model.yarn || '—',
                     'Тип': 'Обычная',
                     'Деталь': '—',
                     'Программа детали': '—',
                     'Размер детали': '—',
                     'Класс детали': '—',
-                    'Пряжа детали': '—',
-                    'Фото детали': '—'
+                    'Пряжа детали': '—'
                 });
             }
         });
@@ -344,9 +340,17 @@ app.get('/admin/models/export', async (req, res) => {
         XLSX.utils.book_append_sheet(wb, ws, 'Модели');
 
         ws['!cols'] = [
-            { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
-            { wch: 30 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 12 },
-            { wch: 12 }, { wch: 20 }, { wch: 30 }
+            { wch: 25 }, // Название
+            { wch: 15 }, // Программа
+            { wch: 12 }, // Размер
+            { wch: 12 }, // Класс
+            { wch: 20 }, // Пряжа
+            { wch: 12 }, // Тип
+            { wch: 25 }, // Деталь
+            { wch: 15 }, // Программа детали
+            { wch: 12 }, // Размер детали
+            { wch: 12 }, // Класс детали
+            { wch: 20 }  // Пряжа детали
         ];
 
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -356,8 +360,8 @@ app.get('/admin/models/export', async (req, res) => {
         res.send(buffer);
 
     } catch (err) {
-        console.error('Ошибка экспорта моделей:', err);
-        res.status(500).send('Ошибка при выгрузке');
+        console.error('❌ Ошибка экспорта моделей:', err);
+        res.status(500).send('Ошибка при выгрузке: ' + err.message);
     }
 });
 
