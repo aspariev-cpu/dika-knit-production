@@ -87,19 +87,21 @@
                                 <th>Модель</th>
                                 <th>Цвет</th>
                                 <th>Количество</th>
+                                <th>ИП</th>
                                 <th>Сотрудник</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% operations.forEach(op => { %>
-                                <tr>
-                                    <td><%= new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) %></td>
-                                    <td><%= op.modelName || (op.Task && op.Task.Model ? op.Task.Model.name : '—') %></td>
-                                    <td><%= op.colorName || (op.Task && op.Task.Color ? op.Task.Color.name : '—') %></td>
-                                    <td><%= op.quantity %></td>
-                                    <td><%= op.employee ? op.employee.fullName : '—' %></td>
-                                </tr>
-                            <% }); %>
+<% operations.forEach(op => { %>
+    <tr>
+        <td><%= new Date(op.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) %></td>
+        <td><%= op.modelName || (op.Task && op.Task.Model ? op.Task.Model.name : '—') %></td>
+        <td><%= op.colorName || (op.Task && op.Task.Color ? op.Task.Color.name : '—') %></td>
+        <td><%= op.quantity %></td>
+        <td><%= op.Task && op.Task.ip ? op.Task.ip : '—' %></td>
+        <td><%= op.employee ? op.employee.fullName : '—' %></td>
+    </tr>
+<% }); %>
                         </tbody>
                     </table>
                 </div>
