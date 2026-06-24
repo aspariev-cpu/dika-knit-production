@@ -1460,7 +1460,7 @@
             const machineSelect = taskCard.querySelector('select[name="machineId"]');
             const machineNumber = machineSelect ? machineSelect.value || '—' : '—';
 
-            const title = modelName;
+            const title = modelName + ' — Деталь: ' + partName;;
 
             const printWindow = window.open('', '_blank', 'width=400,height=300');
             if (!printWindow) {
