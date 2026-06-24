@@ -404,6 +404,48 @@ app.post('/api/colors/delete/:id', async (req, res) => {
 });
 
 // ========================================
+//  ЭКСПОРТ ЦВЕТОВ В EXCEL
+// ========================================
+
+app.get('/admin/colors/export', async (req, res) => {
+    try {
+        const colors = await Color.findAll({
+            order: [['name', 'ASC']]
+        });
+
+        if (!colors || colors.length === 0) {
+            return res.status(404).send('Нет цветов для экспорта');
+        }
+
+        const data = colors.map(color => ({
+            'ID': color.id,
+            'Название цвета': color.name,
+            'Дата создания': new Date(color.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'Цвета');
+
+        ws['!cols'] = [
+            { wch: 10 },
+            { wch: 25 },
+            { wch: 25 }
+        ];
+
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=colors-${new Date().toISOString().split('T')[0]}.xlsx`);
+        res.send(buffer);
+
+    } catch (err) {
+        console.error('❌ Ошибка экспорта цветов:', err);
+        res.status(500).send('Ошибка при выгрузке: ' + err.message);
+    }
+});
+
+// ========================================
 //  УПРАВЛЕНИЕ СОТРУДНИКАМИ
 // ========================================
 
