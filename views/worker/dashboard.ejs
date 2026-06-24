@@ -1404,41 +1404,41 @@
         let pendingPrintData = null;
 
         function showPreview(data) {
-    const modal = document.getElementById('printPreviewModal');
-    document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
-    document.getElementById('previewDetails').innerHTML = `
-        Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
-        Программа: ${data.program || '—'}<br>
-        Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
-    `;
-    document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
-    
-    pendingPrintData = data;
-    modal.dataset.taskId = data.taskId;
-    modal.dataset.operationId = data.operationId;
-    modal.dataset.quantity = data.quantity;
-    modal.dataset.partName = data.partName || '';  // ← ДОБАВИТЬ ЭТУ СТРОКУ
-    modal.style.display = 'flex';
-    
-    document.getElementById('printPreviewBtn').onclick = function() {
-        const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
-        const partName = pendingPrintData?.partName || modal.dataset.partName || '';  // ← ДОБАВИТЬ ЭТУ СТРОКУ
-        printLabelWithQuantity(modal.dataset.taskId, quantity, partName);
-        modal.style.display = 'none';
-        showNotification('🖨️ Этикетка отправлена на печать', 'success');
-        setTimeout(function() {
-            location.reload();
-        }, 1500);
-    };
-    
-    document.getElementById('printPreviewCloseBtn').onclick = function() {
-        modal.style.display = 'none';
-        showNotification('💾 Выработка сохранена', 'info');
-        setTimeout(function() {
-            location.reload();
-        }, 1000);
-    };
-}
+            const modal = document.getElementById('printPreviewModal');
+            document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
+            document.getElementById('previewDetails').innerHTML = `
+                Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
+                Программа: ${data.program || '—'}<br>
+                Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
+            `;
+            document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
+            
+            pendingPrintData = data;
+            modal.dataset.taskId = data.taskId;
+            modal.dataset.operationId = data.operationId;
+            modal.dataset.quantity = data.quantity;
+            modal.dataset.partName = data.partName || '';
+            modal.style.display = 'flex';
+            
+            document.getElementById('printPreviewBtn').onclick = function() {
+                const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
+                const partName = pendingPrintData?.partName || modal.dataset.partName || '';
+                printLabelWithQuantity(modal.dataset.taskId, quantity, partName);
+                modal.style.display = 'none';
+                showNotification('🖨️ Этикетка отправлена на печать', 'success');
+                setTimeout(function() {
+                    location.reload();
+                }, 1500);
+            };
+            
+            document.getElementById('printPreviewCloseBtn').onclick = function() {
+                modal.style.display = 'none';
+                showNotification('💾 Выработка сохранена', 'info');
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            };
+        }
 
         // ========================================
         //  ПЕЧАТЬ
@@ -1502,9 +1502,9 @@
                 <body>
                     <div class="label">
                         <div class="title-row">
-    <div class="model">${title}</div>
-    ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
-</div>
+                            <div class="model">${title}</div>
+                            ${isUrgent ? '<div class="urgent-badge">СРОЧНО</div>' : ''}
+                        </div>
                         <div class="quantity">${qty} шт.</div>
                         <div class="info">
                             <span class="color-dot" style="background:${color};"></span>
