@@ -1401,30 +1401,43 @@
         let pendingPrintData = null;
 
         function showPreview(data) {
-            const modal = document.getElementById('printPreviewModal');
-            document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
-            document.getElementById('previewDetails').innerHTML = `
-                Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
-                Программа: ${data.program || '—'}<br>
-                Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
-            `;
-            document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
-            
-            pendingPrintData = data;
-            modal.dataset.taskId = data.taskId;
-            modal.dataset.operationId = data.operationId;
-            modal.dataset.quantity = data.quantity;
-            modal.style.display = 'flex';
-            
-            document.getElementById('printPreviewBtn').onclick = function() {
-                const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
-                printLabelWithQuantity(modal.dataset.taskId, quantity);
-                modal.style.display = 'none';
-                showNotification('🖨️ Этикетка отправлена на печать', 'success');
-                setTimeout(function() {
-                    location.reload();
-                }, 1500);
-            };
+    const modal = document.getElementById('printPreviewModal');
+    document.getElementById('previewModel').textContent = data.modelName + (data.partName ? ` (${data.partName})` : '');
+    document.getElementById('previewDetails').innerHTML = `
+        Цвет: ${data.color || '—'} | Класс: ${data.className || '—'}<br>
+        Программа: ${data.program || '—'}<br>
+        Размер: ${data.size || '—'} | Пряжа: ${data.yarn || '—'}
+    `;
+    document.getElementById('previewQuantity').textContent = `📦 ${data.quantity} шт.`;
+    
+    pendingPrintData = data;
+    modal.dataset.taskId = data.taskId;
+    modal.dataset.operationId = data.operationId;
+    modal.dataset.quantity = data.quantity;
+    modal.style.display = 'flex';
+    
+    // ✅ КНОПКА ПЕЧАТИ — НЕ ОБНОВЛЯЕМ СТРАНИЦУ СРАЗУ
+    document.getElementById('printPreviewBtn').onclick = function() {
+        const quantity = pendingPrintData?.quantity || modal.dataset.quantity || '0';
+        printLabelWithQuantity(modal.dataset.taskId, quantity);
+        modal.style.display = 'none';
+        showNotification('🖨️ Этикетка отправлена на печать', 'success');
+        // ✅ Обновляем страницу ПОСЛЕ печати
+        setTimeout(function() {
+            location.reload();
+        }, 3000); // Увеличили до 3 секунд
+    };
+    
+    // ✅ КНОПКА ЗАКРЫТЬ — НЕ ОБНОВЛЯЕМ СТРАНИЦУ СРАЗУ
+    document.getElementById('printPreviewCloseBtn').onclick = function() {
+        modal.style.display = 'none';
+        showNotification('💾 Выработка сохранена', 'info');
+        // ✅ Обновляем страницу ПОСЛЕ закрытия
+        setTimeout(function() {
+            location.reload();
+        }, 2000); // Увеличили до 2 секунд
+    };
+}
             
             document.getElementById('printPreviewCloseBtn').onclick = function() {
                 modal.style.display = 'none';
