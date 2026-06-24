@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dika Knit - Вход</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #0a0e1a; font-family: 'Inter', sans-serif;">
+        <div style="background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); padding: 50px 40px; border-radius: 30px; border: 1px solid rgba(201,169,89,0.2); width: 400px; text-align: center;">
+            <div style="font-size: 32px; font-weight: 800; color: #c9a959;">Dika <span style="color:#fff;">Knit</span></div>
+            <div style="color: #8892b0; margin-bottom: 30px; font-size: 14px;">Производственный портал</div>
+            <% if (error) { %><div style="color: #f87171; margin-bottom: 15px;"><%= error %></div><% } %>
+            <form action="/api/login" method="post">
+                <input type="text" name="login" placeholder="Логин" required style="width:100%; padding:14px 18px; margin-bottom:15px; background:rgba(255,255,255,0.08); border:1px solid rgba(201,169,89,0.15); border-radius:12px; color:#fff; font-size:15px;">
+                <input type="password" name="password" placeholder="Пароль" required style="width:100%; padding:14px 18px; margin-bottom:15px; background:rgba(255,255,255,0.08); border:1px solid rgba(201,169,89,0.15); border-radius:12px; color:#fff; font-size:15px;">
+                <button type="submit" style="width:100%; padding:14px; background:linear-gradient(135deg, #c9a959, #b89840); border:none; border-radius:12px; font-weight:700; font-size:16px; color:#0a0e1a; cursor:pointer;">Войти</button>
+            </form>
+            <div style="margin-top: 20px; font-size: 12px; color: #475569;">© 2026 Dika Knit</div>
+        </div>
+    </div>
+</body>
+</html>
