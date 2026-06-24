@@ -18,7 +18,12 @@
     </div>
 
     <div class="container">
-        <h1 class="page-title">🎨 Цвета</h1>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+            <h1 class="page-title" style="margin-bottom:0;">🎨 Цвета</h1>
+            <a href="/admin/colors/export" class="btn-submit" style="padding:6px 16px; background:#4ade80; color:#0a0e1a; text-decoration:none; border-radius:8px; display:inline-block; font-weight:600; font-size:14px;">
+                📥 Excel
+            </a>
+        </div>
 
         <div class="create-task" style="padding:20px;">
             <form action="/api/colors" method="post" style="display:flex; gap:10px; align-items:center;">
